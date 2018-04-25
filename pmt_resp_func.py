@@ -2,58 +2,187 @@
 
 import numpy as np
 from scipy import optimize
+from math import factorial
+import matplotlib.pylab as plt
 
 
 def gaussian(x, x0, sigma, A):
     return A/np.sqrt(2*np.pi) / sigma * np.exp(- .5 * (x-x0)**2 / sigma**2)
 
+def poisson(x, l):
+    return np.exp(-l) * l**x / factorial(x)
+
+
+
 def fit_gaussian(x, y):
-   
+    """Fit a gaussian to data using scipy.optimize.minimize
+
+    Parameters
+    ----------
+    x: np.array
+        x values of the data
+    y: np.array
+        y values of the data
+
+    Returns
+    -------
+    list(float):
+        optimal parameters [x, x0, sigma, A]
+
+    """
     def make_quality_function(x, y):
         def quality_function(s_params):
             return np.sum(((gaussian(x, *s_params) - y))**2)
         return quality_function
-    
+
     mean_0 = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
     sigma_0 = (above_half_max[-1] - above_half_max[0]) / 2.355
     A_0 = y.max() * np.sqrt(2 * np.pi) * sigma_0
+
     start_values = [mean_0, sigma_0, A_0]
 
     qfunc = make_quality_function(x, y)
-    
+
     bounds = [(mean_0 - sigma_0, mean_0 + sigma_0),
               (.5 * sigma_0, 2 * sigma_0),
               (.5 * A_0, 2 * A_0)]
 
     opt = optimize.minimize(qfunc, start_values, bounds=bounds)
-    
+
     return opt.x
 
-def pre_fit(x, y, valley=None, spe_upper_bound=None, n_sigma=5):
-                    
-    if valley is None:
-        x_ped, y_ped = x, y
-    else:
-        cond = x < valley
-        x_ped, y_ped = x[cond], y[cond]
-    
-    popt_ped = fit_gaussian(x_ped, y_ped)
-    
-    if valley is None:
-        if spe_upper_bound is None:
-            cond = x > (popt_ped[0] + n_sigma * popt_ped[1])
+class ChargeHistFitter(object):
+
+
+    def __init__(self):
+        pass
+
+    def pmt_resp_func(self, x, params, n_gaussians):
+        func = .0
+        for i in range(n_gaussians):
+            pois = poisson(i, params[0])
+            sigma = np.sqrt(i * params[2]**2 + self.ped_sigma**2)
+            arg = (x - (i * params[1] + self.ped_mean)) / sigma
+            func += pois / sigma * np.exp(-0.5 * arg**2)
+        return  params[3] * func / np.sqrt(2 * np.pi)
+
+    def pre_fit(self, x, y, valley=None, spe_upper_bound=None, n_sigma=5):
+        """
+        Performs single gaussian fits to pedestal and single p.e. peaks
+
+        Parameters
+        ----------
+        x: np.array
+            bin centres of the charge histogram
+        y: np.array
+            bin counts of the charge histogram
+        valley: float (default=None)
+            user set x position to split hisogram in pedestal and spe
+        spe_upper_bound: float (default=None)
+            user set upper bound for gaussian fit of spe peak
+        n_sigma: float
+            spe fit range starts at:
+            mean of pedestal + n_sigma * sigma of pedestal
+
+        """
+        if valley is None:
+            x_ped, y_ped = x, y
         else:
-            cond = ((x > (popt_ped[0] + n_sigma * popt_ped[1]))
-                    & (x < spe_upper_bound))
-    else:
-        if spe_upper_bound is None:
-            cond = x > valley
+            cond = x < valley
+            x_ped, y_ped = x[cond], y[cond]
+
+        popt_ped = fit_gaussian(x_ped, y_ped)
+
+        if valley is None:
+            if spe_upper_bound is None:
+                cond = x > (popt_ped[0] + n_sigma * popt_ped[1])
+            else:
+                cond = ((x > (popt_ped[0] + n_sigma * popt_ped[1]))
+                        & (x < spe_upper_bound))
         else:
-            cond = (x > valley) & (x < spe_upper_bound)
-    x_spe, y_spe = x[cond], y[cond]
- 
-    
-    popt_spe = fit_gaussian(x_spe, y_spe)
-    
-    return popt_ped, popt_spe
+            if spe_upper_bound is None:
+                cond = x > valley
+            else:
+                cond = (x > valley) & (x < spe_upper_bound)
+        x_spe, y_spe = x[cond], y[cond]
+
+        popt_spe = fit_gaussian(x_spe, y_spe)
+
+        self.ped_mean = popt_ped[0]
+        self.ped_sigma = popt_ped[1]
+        self.ped_A = popt_ped[2]
+
+        self.spe_mean = popt_spe[0]
+        self.spe_sigma = popt_spe[1]
+        self.spe_A = popt_spe[2]
+
+        self.spe_charge = self.spe_mean - self.ped_mean
+
+        self.nphe = -np.log(self.ped_A / (self.ped_A + self.spe_A))
+
+
+
+    def fit_pmt_resp_func(self, x, y, n_gaussians):
+        """
+        Performs fit of pmt response function to charge histogram
+
+        Parameters
+        ----------
+        x: np.array
+            bin centres of the charge histogram
+        y: np.array
+            bin counts of the charge histogram
+        n_gaussians: int
+            number of gaussians to be fitted
+
+        """
+        def make_quality_function(x, y, n_gaussians):
+            def quality_function(params):
+                return np.sum(((self.pmt_resp_func(x, params, n_gaussians) - y))**2)
+            return quality_function
+
+        qfunc = make_quality_function(x, y, n_gaussians)
+
+        start_params = [self.nphe, self.spe_charge,
+                        self.spe_sigma, 50000]
+
+        bounds = [(.5 * self.nphe, 2 * self.nphe),
+                  (.5 * self.spe_charge, 1.5 * self.spe_charge),
+                  (.5 * self.spe_sigma, 1.5 * self.spe_sigma),
+                  (0, 1e7)]
+
+        opt = optimize.minimize(qfunc, start_params, bounds=bounds)
+
+        self.n_gaussians = n_gaussians
+        self.nphe = opt.x[0]
+        self.spe_charge = opt.x[1]
+        self.spe_sigma = opt.x[2]
+        self.entries = opt.x[3]
+
+
+    def plot_pre_fit(self, xs):
+        """
+        Plots prefit
+
+        parameters
+        ----------
+        xs: np.array
+            plots gaussian(xs)
+        """
+        plt.plot(xs, gaussian(xs, self.ped_mean, self.ped_sigma, self.ped_A))
+        plt.plot(xs, gaussian(xs, self.spe_mean, self.spe_sigma, self.spe_A))
+
+    def plot_pmt_resp_func(self, xs):
+        """
+        Plots pmt response function
+
+        parameters
+        ----------
+        xs: np.array
+            plots self.pmt_resp_func(xs)
+        """
+
+        params = [self.nphe, self.spe_charge, self.spe_sigma, self.entries]
+
+        plt.plot(xs, self.pmt_resp_func(xs, params, self.n_gaussians))
