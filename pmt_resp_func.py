@@ -15,7 +15,8 @@ def poisson(x, l):
 
 
 def fit_gaussian(x, y):
-    """Fit a gaussian to data using scipy.optimize.minimize
+    """
+    Fit a gaussian to data using scipy.optimize.minimize
 
     Parameters
     ----------
@@ -53,7 +54,10 @@ def fit_gaussian(x, y):
     return opt.x
 
 class ChargeHistFitter(object):
-
+    """
+    Class that provides simple gaussian fit methods and
+    fit of pmt response function to pmt charge histogram.
+    """
 
     def __init__(self):
         pass
