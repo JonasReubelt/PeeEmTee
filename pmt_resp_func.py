@@ -60,7 +60,7 @@ class ChargeHistFitter(object):
     """
 
     def __init__(self):
-        pass
+        self.fit_parameters = {}
 
     def pmt_resp_func(self, x, params, n_gaussians):
         func = .0
@@ -125,6 +125,17 @@ class ChargeHistFitter(object):
 
         self.nphe = -np.log(self.ped_A / (self.ped_A + self.spe_A))
 
+        self.fit_parameters["ped_mean"] = self.ped_mean
+        self.fit_parameters["ped_sigma"] = self.ped_sigma
+        self.fit_parameters["ped_A"] = self.ped_A
+
+        self.fit_parameters["spe_mean"] = self.spe_mean
+        self.fit_parameters["spe_sigma"] = self.spe_sigma
+        self.fit_parameters["spe_A"] = self.spe_A
+
+        self.fit_parameters["spe_charge"] = self.spe_charge
+        self.fit_parameters["nphe"] = self.nphe
+
 
 
     def fit_pmt_resp_func(self, x, y, n_gaussians):
@@ -163,6 +174,12 @@ class ChargeHistFitter(object):
         self.spe_charge = opt.x[1]
         self.spe_sigma = opt.x[2]
         self.entries = opt.x[3]
+
+        self.fit_parameters["n_gaussians"] = self.n_gaussians
+        self.fit_parameters["nphe"] = self.nphe
+        self.fit_parameters["spe_charge"] = self.spe_charge
+        self.fit_parameters["spe_sigma"] = self.spe_sigma
+        self.fit_parameters["entries"] = self.entries
 
 
     def plot_pre_fit(self, xs):
