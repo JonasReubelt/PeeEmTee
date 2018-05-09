@@ -138,7 +138,7 @@ class ChargeHistFitter(object):
 
 
 
-    def fit_pmt_resp_func(self, x, y, n_gaussians):
+    def fit_pmt_resp_func(self, x, y, n_gaussians, scale_x_values=False):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -150,6 +150,8 @@ class ChargeHistFitter(object):
             bin counts of the charge histogram
         n_gaussians: int
             number of gaussians to be fitted
+        scale_x_values: bool
+            might be helpful if x values are very small
 
         """
         def make_quality_function(x, y, n_gaussians):
@@ -157,23 +159,35 @@ class ChargeHistFitter(object):
                 return np.sum(((self.pmt_resp_func(x, params, n_gaussians) - y))**2)
             return quality_function
 
+        scale_factor = 1
+        if scale_x_values:
+            scale_factor = np.max(x)
+            x = x / scale_factor
+
+
         qfunc = make_quality_function(x, y, n_gaussians)
 
-        start_params = [self.nphe, self.spe_charge,
-                        self.spe_sigma, self.ped_A]
+        entries_start = (self.ped_A + self.spe_A) / scale_factor
+        spe_charge_start = self.spe_charge / scale_factor
+        spe_sigma_start = self.spe_sigma / scale_factor
+
+        start_params = [self.nphe,
+                        spe_charge_start,
+                        spe_sigma_start,
+                        entries_start]
 
         bounds = [(.5 * self.nphe, 2 * self.nphe),
-                  (.5 * self.spe_charge, 1.5 * self.spe_charge),
-                  (.5 * self.spe_sigma, 1.5 * self.spe_sigma),
-                  (self.ped_A/10, self.ped_A*10)]
+                  (.5 * spe_charge_start, 1.5 * spe_charge_start),
+                  (.5 * spe_sigma_start, 1.5 * spe_sigma_start),
+                  (entries_start / 10, entries_start * 10)]
 
         opt = optimize.minimize(qfunc, start_params, bounds=bounds)
 
         self.n_gaussians = n_gaussians
         self.nphe = opt.x[0]
-        self.spe_charge = opt.x[1]
-        self.spe_sigma = opt.x[2]
-        self.entries = opt.x[3]
+        self.spe_charge = opt.x[1] * scale_factor
+        self.spe_sigma = opt.x[2] * scale_factor
+        self.entries = opt.x[3] * scale_factor
 
         self.fit_parameters["n_gaussians"] = self.n_gaussians
         self.fit_parameters["nphe"] = self.nphe
