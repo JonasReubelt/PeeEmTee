@@ -165,7 +165,7 @@ class ChargeHistFitter(object):
         bounds = [(.5 * self.nphe, 2 * self.nphe),
                   (.5 * self.spe_charge, 1.5 * self.spe_charge),
                   (.5 * self.spe_sigma, 1.5 * self.spe_sigma),
-                  (0, 1e7)]
+                  (self.ped_A/10, self.ped_A*10)]
 
         opt = optimize.minimize(qfunc, start_params, bounds=bounds)
 
