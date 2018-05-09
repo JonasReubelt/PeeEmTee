@@ -160,7 +160,7 @@ class ChargeHistFitter(object):
         qfunc = make_quality_function(x, y, n_gaussians)
 
         start_params = [self.nphe, self.spe_charge,
-                        self.spe_sigma, 50000]
+                        self.spe_sigma, self.ped_A]
 
         bounds = [(.5 * self.nphe, 2 * self.nphe),
                   (.5 * self.spe_charge, 1.5 * self.spe_charge),
