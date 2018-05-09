@@ -181,7 +181,13 @@ class ChargeHistFitter(object):
                   (.5 * spe_sigma_start, 1.5 * spe_sigma_start),
                   (entries_start / 10, entries_start * 10)]
 
+        self.ped_mean = self.ped_mean / scale_factor
+        self.ped_sigma = self.ped_sigma / scale_factor
+
         opt = optimize.minimize(qfunc, start_params, bounds=bounds)
+
+        self.ped_mean = self.ped_mean * scale_factor
+        self.ped_sigma = self.ped_sigma * scale_factor
 
         self.n_gaussians = n_gaussians
         self.nphe = opt.x[0]
