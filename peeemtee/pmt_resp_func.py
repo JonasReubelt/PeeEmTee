@@ -2,16 +2,13 @@
 
 import numpy as np
 from scipy import optimize
+from scipy.stats.distributions import poisson
 from math import factorial
 import matplotlib.pylab as plt
 
 
 def gaussian(x, x0, sigma, A):
     return A/np.sqrt(2*np.pi) / sigma * np.exp(- .5 * (x-x0)**2 / sigma**2)
-
-def poisson(x, l):
-    return np.exp(-l) * l**x / factorial(x)
-
 
 
 def fit_gaussian(x, y):
@@ -65,7 +62,7 @@ class ChargeHistFitter(object):
     def pmt_resp_func(self, x, params, n_gaussians):
         func = .0
         for i in range(n_gaussians):
-            pois = poisson(i, params[0])
+            pois = poisson.pmf(i, params[0])
             sigma = np.sqrt(i * params[2]**2 + self.ped_sigma**2)
             arg = (x - (i * params[1] + self.ped_mean)) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
@@ -74,7 +71,7 @@ class ChargeHistFitter(object):
     def pmt_resp_func_fixed_spe(self, x, params, n_gaussians):
         func = .0
         for i in range(n_gaussians):
-            pois = poisson(i, params[0])
+            pois = poisson.pmf(i, params[0])
             sigma = np.sqrt(i * self.spe_sigma**2 + self.ped_sigma**2)
             arg = (x - (i * self.spe_charge + self.ped_mean)) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
@@ -147,8 +144,7 @@ class ChargeHistFitter(object):
 
 
 
-    def fit_pmt_resp_func(self, x, y, n_gaussians,
-                          scale_x_values=False, fixed_spe=False):
+    def fit_pmt_resp_func(self, x, y, n_gaussians, fixed_spe=False):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -171,52 +167,38 @@ class ChargeHistFitter(object):
                 return np.sum(((self.pmt_resp_func(x, params, n_gaussians) - y))**2)
             return quality_function
 
-        scale_factor = 1
-        if scale_x_values:
-            scale_factor = np.max(x)
-            x = x / scale_factor
 
 
         qfunc = make_quality_function(x, y, n_gaussians)
 
         if fixed_spe:
-            entries_start = 50000 / scale_factor
+            start_params = [self.nphe, self.entries_start]
         else:
-            entries_start = (self.ped_A + self.spe_A) / scale_factor
-        spe_charge_start = self.spe_charge / scale_factor
-        spe_sigma_start = self.spe_sigma / scale_factor
-        if fixed_spe:
-            start_params = [1., entries_start]
-        else:
+            entries_start = (self.ped_A + self.spe_A)
             start_params = [self.nphe,
-                            spe_charge_start,
-                            spe_sigma_start,
+                            self.spe_charge,
+                            self.spe_sigma,
                             entries_start]
 
             bounds = [(.5 * self.nphe, 2 * self.nphe),
-                      (.5 * spe_charge_start, 1.5 * spe_charge_start),
-                      (.5 * spe_sigma_start, 1.5 * spe_sigma_start),
+                      (.5 * self.spe_charge, 1.5 * self.spe_charge),
+                      (.5 * self.spe_sigma, 1.5 * self.spe_sigma),
                       (entries_start / 10, entries_start * 10)]
 
-        self.ped_mean = self.ped_mean / scale_factor
-        self.ped_sigma = self.ped_sigma / scale_factor
         if fixed_spe:
             opt = optimize.minimize(qfunc, start_params)
         else:
             opt = optimize.minimize(qfunc, start_params, bounds=bounds)
 
-        self.ped_mean = self.ped_mean * scale_factor
-        self.ped_sigma = self.ped_sigma * scale_factor
-
         self.n_gaussians = n_gaussians
         if fixed_spe:
             self.nphe = opt.x[0]
-            self.entries = opt.x[3] * scale_factor
+            self.entries = opt.x[1]
         else:
             self.nphe = opt.x[0]
-            self.spe_charge = opt.x[1] * scale_factor
-            self.spe_sigma = opt.x[2] * scale_factor
-            self.entries = opt.x[3] * scale_factor
+            self.spe_charge = opt.x[1]
+            self.spe_sigma = opt.x[2]
+            self.entries = opt.x[3]
 
         self.fit_parameters["n_gaussians"] = self.n_gaussians
         self.fit_parameters["nphe"] = self.nphe
@@ -248,5 +230,4 @@ class ChargeHistFitter(object):
         """
 
         params = [self.nphe, self.spe_charge, self.spe_sigma, self.entries]
-
         plt.plot(xs, self.pmt_resp_func(xs, params, self.n_gaussians))
