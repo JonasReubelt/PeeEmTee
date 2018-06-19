@@ -138,7 +138,8 @@ class ChargeHistFitter(object):
 
 
 
-    def fit_pmt_resp_func(self, x, y, n_gaussians, scale_x_values=False):
+    def fit_pmt_resp_func(self, x, y, n_gaussians,
+                          scale_x_values=False, fixed_spe=False):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -154,9 +155,15 @@ class ChargeHistFitter(object):
             might be helpful if x values are very small
 
         """
-        def make_quality_function(x, y, n_gaussians):
+        def make_quality_function(x, y, n_gaussians, fixed_spe):
             def quality_function(params):
                 return np.sum(((self.pmt_resp_func(x, params, n_gaussians) - y))**2)
+            def quality_function_fixed(params):
+                params[1] = fixed_spe[0]
+                params[2] = fixed_spe[1]
+                return np.sum(((self.pmt_resp_func(x, params, n_gaussians) - y))**2)
+            if fixed_spe:
+                return quality_function_fixed
             return quality_function
 
         scale_factor = 1
@@ -165,7 +172,7 @@ class ChargeHistFitter(object):
             x = x / scale_factor
 
 
-        qfunc = make_quality_function(x, y, n_gaussians)
+        qfunc = make_quality_function(x, y, n_gaussians, fixed_spe)
 
         entries_start = (self.ped_A + self.spe_A) / scale_factor
         spe_charge_start = self.spe_charge / scale_factor
