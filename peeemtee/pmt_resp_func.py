@@ -144,7 +144,7 @@ class ChargeHistFitter(object):
 
 
 
-    def fit_pmt_resp_func(self, x, y, n_gaussians, fixed_spe=False):
+    def fit_pmt_resp_func(self, x, y, n_gaussians, fixed_spe=False, min_method="Nelder-Mead"):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -156,15 +156,19 @@ class ChargeHistFitter(object):
             bin counts of the charge histogram
         n_gaussians: int
             number of gaussians to be fitted
-        scale_x_values: bool
-            might be helpful if x values are very small
+        fixed_spe: bool
+            if True: fixes spe_charge and spe_sigma in order to fit higher nphe
+            charge spectra
 
         """
+        if fixed_spe:
+            func = self.pmt_resp_func_fixed_spe
+        else:
+            func = self.pmt_resp_func
+
         def make_quality_function(x, y, n_gaussians):
             def quality_function(params):
-                if fixed_spe:
-                    return np.sum(((self.pmt_resp_func_fixed_spe(x, params, n_gaussians) - y))**2)
-                return np.sum(((self.pmt_resp_func(x, params, n_gaussians) - y))**2)
+                return np.sum(((func(x, params, n_gaussians) - y))**2)
             return quality_function
 
 
@@ -173,6 +177,8 @@ class ChargeHistFitter(object):
 
         if fixed_spe:
             start_params = [self.nphe, self.entries_start]
+            bounds = [(.5 * self.nphe, 2 * self.nphe),
+                      ((self.entries_start / 10, self.entries_start * 10))]
         else:
             entries_start = (self.ped_A + self.spe_A)
             start_params = [self.nphe,
@@ -185,10 +191,8 @@ class ChargeHistFitter(object):
                       (.5 * self.spe_sigma, 1.5 * self.spe_sigma),
                       (entries_start / 10, entries_start * 10)]
 
-        if fixed_spe:
-            opt = optimize.minimize(qfunc, start_params)
-        else:
-            opt = optimize.minimize(qfunc, start_params, bounds=bounds)
+
+        opt = optimize.minimize(qfunc, start_params, method=min_method)
 
         self.n_gaussians = n_gaussians
         if fixed_spe:
