@@ -186,9 +186,7 @@ class ChargeHistFitter(object):
         spe_charge_start = self.spe_charge / scale_factor
         spe_sigma_start = self.spe_sigma / scale_factor
         if fixed_spe:
-            start_params = [self.nphe, entries_start]
-            bounds = [(.5 * self.nphe, 2 * self.nphe),
-                      (entries_start / 10, entries_start * 10)]
+            start_params = [1., entries_start]
         else:
             start_params = [self.nphe,
                             spe_charge_start,
@@ -202,8 +200,10 @@ class ChargeHistFitter(object):
 
         self.ped_mean = self.ped_mean / scale_factor
         self.ped_sigma = self.ped_sigma / scale_factor
-
-        opt = optimize.minimize(qfunc, start_params, bounds=bounds)
+        if fixed_spe:
+            opt = optimize.minimize(qfunc, start_params)
+        else:
+            opt = optimize.minimize(qfunc, start_params, bounds=bounds)
 
         self.ped_mean = self.ped_mean * scale_factor
         self.ped_sigma = self.ped_sigma * scale_factor
