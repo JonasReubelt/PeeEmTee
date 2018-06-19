@@ -78,7 +78,7 @@ class ChargeHistFitter(object):
             sigma = np.sqrt(i * self.spe_sigma**2 + self.ped_sigma**2)
             arg = (x - (i * self.spe_charge + self.ped_mean)) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
-        return  params[3] * func / np.sqrt(2 * np.pi)
+        return  params[1] * func / np.sqrt(2 * np.pi)
 
     def pre_fit(self, x, y, valley=None, spe_upper_bound=None, n_sigma=5):
         """
