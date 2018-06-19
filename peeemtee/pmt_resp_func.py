@@ -179,7 +179,10 @@ class ChargeHistFitter(object):
 
         qfunc = make_quality_function(x, y, n_gaussians)
 
-        entries_start = (self.ped_A + self.spe_A) / scale_factor
+        if fixed_spe:
+            entries_start = 50000 / scale_factor
+        else:
+            entries_start = (self.ped_A + self.spe_A) / scale_factor
         spe_charge_start = self.spe_charge / scale_factor
         spe_sigma_start = self.spe_sigma / scale_factor
         if fixed_spe:
