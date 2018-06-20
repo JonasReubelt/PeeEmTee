@@ -5,10 +5,11 @@ from scipy import optimize
 from scipy.stats.distributions import poisson
 from math import factorial
 import matplotlib.pylab as plt
+from iminuit import Minuit
 
 
-def gaussian(x, x0, sigma, A):
-    return A/np.sqrt(2*np.pi) / sigma * np.exp(- .5 * (x-x0)**2 / sigma**2)
+def gaussian(x, mean, sigma, A):
+    return A/np.sqrt(2*np.pi) / sigma * np.exp(- .5 * (x-mean)**2 / sigma**2)
 
 
 def fit_gaussian(x, y):
@@ -29,8 +30,8 @@ def fit_gaussian(x, y):
 
     """
     def make_quality_function(x, y):
-        def quality_function(s_params):
-            return np.sum(((gaussian(x, *s_params) - y))**2)
+        def quality_function(mean, sigma, A):
+            return np.sum(((gaussian(x, mean, sigma, A) - y))**2)
         return quality_function
 
     mean_0 = x[y.argmax()]
@@ -42,13 +43,16 @@ def fit_gaussian(x, y):
 
     qfunc = make_quality_function(x, y)
 
-    bounds = [(mean_0 - sigma_0, mean_0 + sigma_0),
-              (.5 * sigma_0, 2 * sigma_0),
-              (.5 * A_0, 2 * A_0)]
+    #bounds = [(mean_0 - sigma_0, mean_0 + sigma_0),
+    #          (.5 * sigma_0, 2 * sigma_0),
+    #          (.5 * A_0, 2 * A_0)]
+    kwargs = {"mean": mean_0, "sigma": sigma_0, "A": A_0}
+    #opt = optimize.minimize(qfunc, start_values, bounds=bounds)
 
-    opt = optimize.minimize(qfunc, start_values, bounds=bounds)
+    m = Minuit(qfunc, errordef=10, **kwargs)
+    m.migrad()
 
-    return opt.x
+    return m.values
 
 class ChargeHistFitter(object):
     """
@@ -59,23 +63,20 @@ class ChargeHistFitter(object):
     def __init__(self):
         self.fit_parameters = {}
 
-    def pmt_resp_func(self, x, params, n_gaussians):
+    def pmt_resp_func(self,
+                      x,
+                      nphe,
+                      spe_charge,
+                      spe_sigma,
+                      entries,
+                      n_gaussians):
         func = .0
         for i in range(n_gaussians):
-            pois = poisson.pmf(i, params[0])
-            sigma = np.sqrt(i * params[2]**2 + self.ped_sigma**2)
-            arg = (x - (i * params[1] + self.ped_mean)) / sigma
+            pois = poisson.pmf(int(i), nphe)
+            sigma = np.sqrt(i * spe_sigma**2 + self.ped_sigma**2)
+            arg = (x - (i * spe_charge + self.ped_mean)) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
-        return  params[3] * func / np.sqrt(2 * np.pi)
-
-    def pmt_resp_func_fixed_spe(self, x, params, n_gaussians):
-        func = .0
-        for i in range(n_gaussians):
-            pois = poisson.pmf(i, params[0])
-            sigma = np.sqrt(i * self.spe_sigma**2 + self.ped_sigma**2)
-            arg = (x - (i * self.spe_charge + self.ped_mean)) / sigma
-            func += pois / sigma * np.exp(-0.5 * arg**2)
-        return  params[1] * func / np.sqrt(2 * np.pi)
+        return  entries * func / np.sqrt(2 * np.pi)
 
     def pre_fit(self, x, y, valley=None, spe_upper_bound=None, n_sigma=5):
         """
@@ -106,9 +107,9 @@ class ChargeHistFitter(object):
 
         if valley is None:
             if spe_upper_bound is None:
-                cond = x > (popt_ped[0] + n_sigma * popt_ped[1])
+                cond = x > (popt_ped["mean"] + n_sigma * popt_ped["sigma"])
             else:
-                cond = ((x > (popt_ped[0] + n_sigma * popt_ped[1]))
+                cond = ((x > (popt_ped["mean"] + n_sigma * popt_ped["sigma"]))
                         & (x < spe_upper_bound))
         else:
             if spe_upper_bound is None:
@@ -119,13 +120,13 @@ class ChargeHistFitter(object):
 
         popt_spe = fit_gaussian(x_spe, y_spe)
 
-        self.ped_mean = popt_ped[0]
-        self.ped_sigma = popt_ped[1]
-        self.ped_A = popt_ped[2]
+        self.ped_mean = popt_ped["mean"]
+        self.ped_sigma = popt_ped["sigma"]
+        self.ped_A = popt_ped["A"]
 
-        self.spe_mean = popt_spe[0]
-        self.spe_sigma = popt_spe[1]
-        self.spe_A = popt_spe[2]
+        self.spe_mean = popt_spe["mean"]
+        self.spe_sigma = popt_spe["sigma"]
+        self.spe_A = popt_spe["A"]
 
         self.spe_charge = self.spe_mean - self.ped_mean
 
@@ -161,48 +162,40 @@ class ChargeHistFitter(object):
             charge spectra
 
         """
-        if fixed_spe:
-            func = self.pmt_resp_func_fixed_spe
-        else:
-            func = self.pmt_resp_func
+
+        func = self.pmt_resp_func
 
         def make_quality_function(x, y, n_gaussians):
-            def quality_function(params):
-                return np.sum(((func(x, params, n_gaussians) - y))**2)
+            def quality_function(nphe, spe_charge, spe_sigma, entries):
+                return np.sum(((func(x, nphe, spe_charge,
+                                     spe_sigma, entries, n_gaussians) - y))**2)
             return quality_function
-
-
 
         qfunc = make_quality_function(x, y, n_gaussians)
 
         if fixed_spe:
-            start_params = [self.nphe, self.entries_start]
-            bounds = [(.5 * self.nphe, 2 * self.nphe),
-                      ((self.entries_start / 10, self.entries_start * 10))]
+            entries_start = self.entries
         else:
             entries_start = (self.ped_A + self.spe_A)
-            start_params = [self.nphe,
-                            self.spe_charge,
-                            self.spe_sigma,
-                            entries_start]
 
-            bounds = [(.5 * self.nphe, 2 * self.nphe),
-                      (.5 * self.spe_charge, 1.5 * self.spe_charge),
-                      (.5 * self.spe_sigma, 1.5 * self.spe_sigma),
-                      (entries_start / 10, entries_start * 10)]
+        kwargs = {"nphe": self.nphe, "spe_charge": self.spe_charge,
+                  "spe_sigma": self.spe_sigma, "entries": entries_start}
+        if fixed_spe:
+            kwargs["fix_spe_charge"] = True
+            kwargs["fix_spe_sigma"] = True
 
-
-        opt = optimize.minimize(qfunc, start_params, method=min_method)
-
+        m = Minuit(qfunc, errordef=10, **kwargs)
+        m.migrad()
+        opt_params = m.values
         self.n_gaussians = n_gaussians
         if fixed_spe:
-            self.nphe = opt.x[0]
-            self.entries = opt.x[1]
+            self.nphe = opt_params["nphe"]
+            self.entries = opt_params["entries"]
         else:
-            self.nphe = opt.x[0]
-            self.spe_charge = opt.x[1]
-            self.spe_sigma = opt.x[2]
-            self.entries = opt.x[3]
+            self.nphe = opt_params["nphe"]
+            self.spe_charge = opt_params["spe_charge"]
+            self.spe_sigma = opt_params["spe_sigma"]
+            self.entries = opt_params["entries"]
 
         self.fit_parameters["n_gaussians"] = self.n_gaussians
         self.fit_parameters["nphe"] = self.nphe
@@ -233,5 +226,5 @@ class ChargeHistFitter(object):
             plots self.pmt_resp_func(xs)
         """
 
-        params = [self.nphe, self.spe_charge, self.spe_sigma, self.entries]
-        plt.plot(xs, self.pmt_resp_func(xs, params, self.n_gaussians))
+        self.nphe, self.spe_charge, self.spe_sigma, self.entries
+        plt.plot(xs, self.pmt_resp_func(xs, self.nphe, self.spe_charge, self.spe_sigma, self.entries, self.n_gaussians))
