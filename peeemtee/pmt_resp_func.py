@@ -1,20 +1,17 @@
 #!/usr/bin/env python
 
 import numpy as np
-from scipy import optimize
 from scipy.stats.distributions import poisson
-from math import factorial
-import matplotlib.pylab as plt
 from iminuit import Minuit
 
 
 def gaussian(x, mean, sigma, A):
-    return A/np.sqrt(2*np.pi) / sigma * np.exp(- .5 * (x-mean)**2 / sigma**2)
+    return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
 
 
 def fit_gaussian(x, y):
     """
-    Fit a gaussian to data using scipy.optimize.minimize
+    Fit a gaussian to data using iminuit migrad
 
     Parameters
     ----------
@@ -25,8 +22,8 @@ def fit_gaussian(x, y):
 
     Returns
     -------
-    list(float):
-        optimal parameters [x, x0, sigma, A]
+    dict(float):
+        optimal parameters {"mean": mean, "sigma": sigma, "A": A}
 
     """
     def make_quality_function(x, y):
@@ -34,20 +31,14 @@ def fit_gaussian(x, y):
             return np.sum(((gaussian(x, mean, sigma, A) - y))**2)
         return quality_function
 
-    mean_0 = x[y.argmax()]
+    mean_start = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
-    sigma_0 = (above_half_max[-1] - above_half_max[0]) / 2.355
-    A_0 = y.max() * np.sqrt(2 * np.pi) * sigma_0
-
-    start_values = [mean_0, sigma_0, A_0]
+    sigma_start = (above_half_max[-1] - above_half_max[0]) / 2.355
+    A_start = y.max() * np.sqrt(2 * np.pi) * sigma_start
 
     qfunc = make_quality_function(x, y)
 
-    #bounds = [(mean_0 - sigma_0, mean_0 + sigma_0),
-    #          (.5 * sigma_0, 2 * sigma_0),
-    #          (.5 * A_0, 2 * A_0)]
-    kwargs = {"mean": mean_0, "sigma": sigma_0, "A": A_0}
-    #opt = optimize.minimize(qfunc, start_values, bounds=bounds)
+    kwargs = {"mean": mean_start, "sigma": sigma_start, "A": A_start}
 
     m = Minuit(qfunc, errordef=10, **kwargs)
     m.migrad()
@@ -61,20 +52,22 @@ class ChargeHistFitter(object):
     """
 
     def __init__(self):
-        self.fit_parameters = {}
+        self.fixed_spe = False
+
+    def gaussian(self, x, mean, sigma, A):
+        return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
 
     def pmt_resp_func(self,
                       x,
                       nphe,
                       spe_charge,
                       spe_sigma,
-                      entries,
-                      n_gaussians):
+                      entries):
         func = .0
-        for i in range(n_gaussians):
+        for i in range(self.n_gaussians):
             pois = poisson.pmf(int(i), nphe)
-            sigma = np.sqrt(i * spe_sigma**2 + self.ped_sigma**2)
-            arg = (x - (i * spe_charge + self.ped_mean)) / sigma
+            sigma = np.sqrt(i * spe_sigma**2 + self.popt_ped["sigma"]**2)
+            arg = (x - (i * spe_charge + self.popt_ped["mean"])) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
         return  entries * func / np.sqrt(2 * np.pi)
 
@@ -120,32 +113,35 @@ class ChargeHistFitter(object):
 
         popt_spe = fit_gaussian(x_spe, y_spe)
 
-        self.ped_mean = popt_ped["mean"]
-        self.ped_sigma = popt_ped["sigma"]
-        self.ped_A = popt_ped["A"]
+        self.popt_ped = popt_ped
+        self.popt_spe = popt_spe
 
-        self.spe_mean = popt_spe["mean"]
-        self.spe_sigma = popt_spe["sigma"]
-        self.spe_A = popt_spe["A"]
+        self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
+        self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
 
-        self.spe_charge = self.spe_mean - self.ped_mean
+    def fix_spe(self, ped_mean, ped_sigma, spe_charge, spe_sigma):
+        """
+        Fixes spe in fit_pmt_resp_func and sets fixed parameters
 
-        self.nphe = -np.log(self.ped_A / (self.ped_A + self.spe_A))
+        Parameters
+        ----------
+        ped_mean: float
+            mean of gaussian fit of pedestal
+        ped_sigma: float
+            sigma of gaussian fit of pedestal
+        spe_charge: float
+            charge of spe (spe_mean - spe_charge)
+        spe_sigma: float
+            sigma of gaussian fit of spe peak
 
-        self.fit_parameters["ped_mean"] = self.ped_mean
-        self.fit_parameters["ped_sigma"] = self.ped_sigma
-        self.fit_parameters["ped_A"] = self.ped_A
-
-        self.fit_parameters["spe_mean"] = self.spe_mean
-        self.fit_parameters["spe_sigma"] = self.spe_sigma
-        self.fit_parameters["spe_A"] = self.spe_A
-
-        self.fit_parameters["spe_charge"] = self.spe_charge
-        self.fit_parameters["nphe"] = self.nphe
+        """
+        self.fixed_spe = True
+        self.popt_ped = {"mean": ped_mean, "sigma": ped_sigma}
+        self.popt_spe = {"sigma": spe_sigma}
+        self.spe_charge = spe_charge
 
 
-
-    def fit_pmt_resp_func(self, x, y, n_gaussians, fixed_spe=False, min_method="Nelder-Mead"):
+    def fit_pmt_resp_func(self, x, y, n_gaussians):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -162,69 +158,30 @@ class ChargeHistFitter(object):
             charge spectra
 
         """
-
+        self.n_gaussians = n_gaussians
         func = self.pmt_resp_func
 
-        def make_quality_function(x, y, n_gaussians):
+        def make_quality_function(x, y):
             def quality_function(nphe, spe_charge, spe_sigma, entries):
                 return np.sum(((func(x, nphe, spe_charge,
-                                     spe_sigma, entries, n_gaussians) - y))**2)
+                                     spe_sigma, entries) - y))**2)
             return quality_function
 
-        qfunc = make_quality_function(x, y, n_gaussians)
+        qfunc = make_quality_function(x, y)
 
-        if fixed_spe:
+        if self.fixed_spe:
             entries_start = self.entries
         else:
-            entries_start = (self.ped_A + self.spe_A)
+            entries_start = (self.popt_ped["A"] + self.popt_spe["A"])
 
         kwargs = {"nphe": self.nphe, "spe_charge": self.spe_charge,
-                  "spe_sigma": self.spe_sigma, "entries": entries_start}
-        if fixed_spe:
+                  "spe_sigma": self.popt_spe["sigma"], "entries": entries_start}
+        if self.fixed_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
 
         m = Minuit(qfunc, errordef=10, **kwargs)
         m.migrad()
-        opt_params = m.values
+
+        self.popt_pmt_resp_func = m.values
         self.n_gaussians = n_gaussians
-        if fixed_spe:
-            self.nphe = opt_params["nphe"]
-            self.entries = opt_params["entries"]
-        else:
-            self.nphe = opt_params["nphe"]
-            self.spe_charge = opt_params["spe_charge"]
-            self.spe_sigma = opt_params["spe_sigma"]
-            self.entries = opt_params["entries"]
-
-        self.fit_parameters["n_gaussians"] = self.n_gaussians
-        self.fit_parameters["nphe"] = self.nphe
-        self.fit_parameters["spe_charge"] = self.spe_charge
-        self.fit_parameters["spe_sigma"] = self.spe_sigma
-        self.fit_parameters["entries"] = self.entries
-
-
-    def plot_pre_fit(self, xs):
-        """
-        Plots prefit
-
-        parameters
-        ----------
-        xs: np.array
-            plots gaussian(xs)
-        """
-        plt.plot(xs, gaussian(xs, self.ped_mean, self.ped_sigma, self.ped_A))
-        plt.plot(xs, gaussian(xs, self.spe_mean, self.spe_sigma, self.spe_A))
-
-    def plot_pmt_resp_func(self, xs):
-        """
-        Plots pmt response function
-
-        parameters
-        ----------
-        xs: np.array
-            plots self.pmt_resp_func(xs)
-        """
-
-        self.nphe, self.spe_charge, self.spe_sigma, self.entries
-        plt.plot(xs, self.pmt_resp_func(xs, self.nphe, self.spe_charge, self.spe_sigma, self.entries, self.n_gaussians))
