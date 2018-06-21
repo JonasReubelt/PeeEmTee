@@ -64,7 +64,7 @@ class ChargeHistFitter(object):
         self.fixed_ped_spe = False
 
     def gaussian(self, x, mean, sigma, A):
-        return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
+        return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5*(x-mean)**2 / sigma**2)
 
     def pmt_resp_func(self,
                       x,
@@ -101,7 +101,8 @@ class ChargeHistFitter(object):
         self.popt_spe = {"sigma": spe_sigma}
         self.spe_charge = spe_charge
 
-    def pre_fit(self, x, y, valley=None, spe_upper_bound=None, n_sigma=3, errordef=10):
+    def pre_fit(self, x, y,
+                valley=None, spe_upper_bound=None, n_sigma=3, errordef=10):
         """
         Performs single gaussian fits to pedestal and single p.e. peaks
 
@@ -143,8 +144,8 @@ class ChargeHistFitter(object):
                 if spe_upper_bound is None:
                     cond = x > (popt_ped["mean"] + n_sigma * popt_ped["sigma"])
                 else:
-                    cond = ((x > (popt_ped["mean"] + n_sigma * popt_ped["sigma"]))
-                            & (x < spe_upper_bound))
+                    cond = ((x > (popt_ped["mean"] + n_sigma *
+                                  popt_ped["sigma"])) & (x < spe_upper_bound))
             else:
                 if spe_upper_bound is None:
                     cond = x > valley
