@@ -8,7 +8,6 @@ from iminuit import Minuit
 def gaussian(x, mean, sigma, A):
     return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
 
-
 def fit_gaussian(x, y, errordef=10):
     """
     Fit a gaussian to data using iminuit migrad
@@ -61,7 +60,6 @@ class ChargeHistFitter(object):
         plt.plot(x, fitter.pmt_resp_func(x, **fitter.popt_pmt_resp_func))
 
     """
-
     def __init__(self):
         self.fixed_ped_spe = False
 
@@ -103,7 +101,7 @@ class ChargeHistFitter(object):
         self.popt_spe = {"sigma": spe_sigma}
         self.spe_charge = spe_charge
 
-    def pre_fit(self, x, y, valley=None, spe_upper_bound=None, n_sigma=5, errordef=10):
+    def pre_fit(self, x, y, valley=None, spe_upper_bound=None, n_sigma=3, errordef=10):
         """
         Performs single gaussian fits to pedestal and single p.e. peaks
 
@@ -162,7 +160,6 @@ class ChargeHistFitter(object):
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
             self.n_gaussians = 10
-
 
     def fit_pmt_resp_func(self, x, y, n_gaussians=None, errordef=10):
         """
