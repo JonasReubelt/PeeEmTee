@@ -119,9 +119,9 @@ class ChargeHistFitter(object):
         self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
         self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
 
-    def fix_spe(self, ped_mean, ped_sigma, spe_charge, spe_sigma):
+    def fix_ped_spe(self, ped_mean, ped_sigma, spe_charge, spe_sigma):
         """
-        Fixes spe in fit_pmt_resp_func and sets fixed parameters
+        Fixes ped and spe in fit_pmt_resp_func and sets fixed parameters
 
         Parameters
         ----------
