@@ -157,6 +157,8 @@ class ChargeHistFitter(object):
 
             self.popt_ped = popt_ped
             self.popt_spe = popt_spe
+            self.opt_ped_values = self.gaussian(x, **popt_ped)
+            self.opt_spe_values = self.gaussian(x, **popt_spe)
 
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
@@ -206,4 +208,5 @@ class ChargeHistFitter(object):
         m = Minuit(qfunc, errordef=errordef, pedantic=False, **kwargs)
         m.migrad()
 
-        self.popt_pmt_resp_func = m.values
+        self.popt_prf = m.values
+        self.opt_prf_values = self.pmt_resp_func(x, **m.values)
