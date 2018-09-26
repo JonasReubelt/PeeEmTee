@@ -3,7 +3,7 @@ from setuptools import setup
 import peeemtee
 
 __author__ = 'Jonas Reubelt'
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 
 with open('requirements.txt') as fobj:
     requirements = [l.strip() for l in fobj.readlines()]
