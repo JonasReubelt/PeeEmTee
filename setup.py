@@ -1,9 +1,8 @@
 from setuptools import setup
 
-import peeemtee
 
 __author__ = 'Jonas Reubelt'
-VERSION = "0.0.2"
+VERSION = "0.0.3"
 
 with open('requirements.txt') as fobj:
     requirements = [l.strip() for l in fobj.readlines()]
@@ -18,6 +17,7 @@ setup(name='peeemtee',
       include_package_data=True,
       platforms='any',
       install_requires=requirements,
+      setup_requires=requirements,
       entry_points={
           'console_scripts': [
           ],
