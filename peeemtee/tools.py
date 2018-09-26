@@ -34,7 +34,7 @@ def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
     return charges
 
 
-def calculate_histogram_data(data, bins, range=None):
+def calculate_histogram_data(data, bins=10, range=None):
     """
     Calculates values and bin centres of a histogram of a set of data
 
