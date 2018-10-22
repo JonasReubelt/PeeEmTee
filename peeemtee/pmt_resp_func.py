@@ -66,6 +66,24 @@ class ChargeHistFitter(object):
     def gaussian(self, x, mean, sigma, A):
         return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5*(x-mean)**2 / sigma**2)
 
+    def pmt_resp_func_mod(self,
+                          x,
+                          nphe,
+                          spe_charge,
+                          spe_sigma,
+                          entries,
+                          prep_fac,
+                          prep_A):
+        func = .0
+        for i in range(self.n_gaussians):
+            pois = poisson.pmf(int(i), nphe)
+            sigma = np.sqrt(i * spe_sigma**2 + self.popt_ped["sigma"]**2)
+            arg = (x - (i * spe_charge + self.popt_ped["mean"])) / sigma
+            func += pois / sigma * np.exp(-0.5 * arg**2)
+        func = entries * func / np.sqrt(2 * np.pi)
+        func += self.gaussian(x, spe_charge/prep_fac, spe_sigma/np.sqrt(prep_fac), prep_A)
+        return func
+
     def pmt_resp_func(self,
                       x,
                       nphe,
@@ -78,7 +96,8 @@ class ChargeHistFitter(object):
             sigma = np.sqrt(i * spe_sigma**2 + self.popt_ped["sigma"]**2)
             arg = (x - (i * spe_charge + self.popt_ped["mean"])) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
-        return  entries * func / np.sqrt(2 * np.pi)
+        func = entries * func / np.sqrt(2 * np.pi)
+        return func
 
     def fix_ped_spe(self, ped_mean, ped_sigma, spe_charge, spe_sigma):
         """
@@ -164,7 +183,7 @@ class ChargeHistFitter(object):
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
             self.n_gaussians = 10
 
-    def fit_pmt_resp_func(self, x, y, n_gaussians=None, errordef=10):
+    def fit_pmt_resp_func(self, x, y, n_gaussians=None, errordef=10, mod=False):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -176,23 +195,33 @@ class ChargeHistFitter(object):
             bin counts of the charge histogram
         n_gaussians: int
             number of gaussians to be fitted
-        fixed_spe: bool
-            if True: fixes spe_charge and spe_sigma in order to fit higher nphe
-            charge spectra
+        errordef: int
+            parses "errordef" from iminuit
+        mod: bool
+            if True: use modified pmt response function (pmt_resp_func_mod)
 
         """
         if n_gaussians:
             self.n_gaussians = n_gaussians
 
         func = self.pmt_resp_func
+        if mod:
+            func = self.pmt_resp_func_mod
 
-        def make_quality_function(x, y):
-            def quality_function(nphe, spe_charge, spe_sigma, entries):
-                return np.sum(((func(x, nphe, spe_charge,
-                                     spe_sigma, entries) - y))**2)
+        def make_quality_function(x, y, mod):
+            if mod:
+                def quality_function(nphe, spe_charge, spe_sigma, entries,
+                                     prep_fac, prep_A):
+                    return np.sum(((func(x, nphe, spe_charge,
+                                         spe_sigma, entries,
+                                         prep_fac, prep_A) - y))**2)
+            else:
+                def quality_function(nphe, spe_charge, spe_sigma, entries):
+                    return np.sum(((func(x, nphe, spe_charge,
+                                         spe_sigma, entries) - y))**2)
             return quality_function
 
-        qfunc = make_quality_function(x, y)
+        qfunc = make_quality_function(x, y, mod=mod)
 
         if self.fixed_ped_spe:
             entries_start = self.entries
@@ -204,9 +233,16 @@ class ChargeHistFitter(object):
         if self.fixed_ped_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
+        if mod:
+            kwargs["prep_fac"] = 7
+            #kwargs["fix_prep_mean"] = True
+            kwargs["limit_prep_fac"] = (1, 20)
+            #kwargs["fix_prep_sigma"] = True
+            kwargs["prep_A"] = entries_start / 100
+            kwargs["limit_prep_A"] = (0, entries_start)
 
         m = Minuit(qfunc, errordef=errordef, pedantic=False, **kwargs)
         m.migrad()
 
         self.popt_prf = m.values
-        self.opt_prf_values = self.pmt_resp_func(x, **m.values)
+        self.opt_prf_values = func(x, **m.values)
