@@ -8,7 +8,7 @@ from iminuit import Minuit
 def gaussian(x, mean, sigma, A):
     return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
 
-def fit_gaussian(x, y, errordef=10):
+def fit_gaussian(x, y, errordef=10, print_level=1):
     """
     Fit a gaussian to data using iminuit migrad
 
@@ -32,14 +32,18 @@ def fit_gaussian(x, y, errordef=10):
 
     mean_start = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
-    sigma_start = (above_half_max[-1] - above_half_max[0]) / 2.355
+    if len(above_half_max) == 1:
+        sigma_start = 1
+    else:
+        sigma_start = (above_half_max[-1] - above_half_max[0]) / 2.355
     A_start = y.max() * np.sqrt(2 * np.pi) * sigma_start
 
     qfunc = make_quality_function(x, y)
 
     kwargs = {"mean": mean_start, "sigma": sigma_start, "A": A_start}
 
-    m = Minuit(qfunc, errordef=errordef, pedantic=False, **kwargs)
+    m = Minuit(qfunc, errordef=errordef, pedantic=False,
+               print_level=print_level, **kwargs)
     m.migrad()
 
     return m.values
@@ -121,7 +125,8 @@ class ChargeHistFitter(object):
         self.spe_charge = spe_charge
 
     def pre_fit(self, x, y,
-                valley=None, spe_upper_bound=None, n_sigma=3, errordef=10):
+                valley=None, spe_upper_bound=None, n_sigma=3, errordef=10,
+                print_level=1):
         """
         Performs single gaussian fits to pedestal and single p.e. peaks
 
@@ -157,7 +162,7 @@ class ChargeHistFitter(object):
                 cond = x < valley
                 x_ped, y_ped = x[cond], y[cond]
 
-            popt_ped = fit_gaussian(x_ped, y_ped)
+            popt_ped = fit_gaussian(x_ped, y_ped, print_level=print_level)
 
             if valley is None:
                 if spe_upper_bound is None:
@@ -172,7 +177,8 @@ class ChargeHistFitter(object):
                     cond = (x > valley) & (x < spe_upper_bound)
             x_spe, y_spe = x[cond], y[cond]
 
-            popt_spe = fit_gaussian(x_spe, y_spe, errordef=errordef)
+            popt_spe = fit_gaussian(x_spe, y_spe, errordef=errordef,
+                                    print_level=print_level)
 
             self.popt_ped = popt_ped
             self.popt_spe = popt_spe
@@ -183,7 +189,8 @@ class ChargeHistFitter(object):
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
             self.n_gaussians = 10
 
-    def fit_pmt_resp_func(self, x, y, n_gaussians=None, errordef=10, mod=False):
+    def fit_pmt_resp_func(self, x, y, n_gaussians=None, errordef=10,
+                          print_level=1, mod=False):
         """
         Performs fit of pmt response function to charge histogram
 
@@ -241,7 +248,8 @@ class ChargeHistFitter(object):
             kwargs["prep_A"] = entries_start / 100
             kwargs["limit_prep_A"] = (0, entries_start)
 
-        m = Minuit(qfunc, errordef=errordef, pedantic=False, **kwargs)
+        m = Minuit(qfunc, errordef=errordef, pedantic=False,
+                   print_level=print_level, **kwargs)
         m.migrad()
 
         self.popt_prf = m.values
