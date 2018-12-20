@@ -87,7 +87,7 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
         z values of the histogram
 
     """
-    times = np.tile(np.arange(waveform.shape[1]), (waveforms.shape[0], 1))
+    times = np.tile(np.arange(waveforms.shape[1]), (waveforms.shape[0], 1))
     z, xs, ys = np.histogram2d(times.flatten(),
                                    waveforms.flatten(),
                                    bins=bins,
@@ -96,4 +96,4 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     ys = (ys + (ys[1] - ys[0])/2)[:-1]
     x = np.array([[x] * bins[0] for x in xs])
     y = np.array(list(ys) * bins[1])
-    return x, y, z
+    return x.flatten(), y.flatten(), z.flatten()
