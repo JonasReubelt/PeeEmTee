@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
 import numpy as np
+from scipy.optimize import curve_fit
+
+def gaussian(x, mean, sigma, A):
+    return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
 
 def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
     """
@@ -97,3 +101,49 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     x = np.array([[x] * bins[0] for x in xs])
     y = np.array(list(ys) * bins[1])
     return x.flatten(), y.flatten(), z.flatten()
+
+
+def calculate_mean_signal(signals, xs, signal_range, p0=None):
+    """
+    Calculates mean signals from several PMT signals
+
+    Parameters
+    ----------
+    signals: np.array
+        2D numpy array with one signal (y-values) in each row
+        [[signal1],
+        [signal2],
+        ...]
+    xs: np.array
+        x values of the signals
+    signal_range: tuple(float)
+        range around mean in which mean signal is calculated
+    p0: list
+        start parameters for gaussian fit
+
+    Returns
+    -------
+    mean_signal: (np.array, np.array)
+        x and y values of mean signal
+    """
+    means = []
+    for signal in signals:
+        popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
+        means.append(popt[0])
+    n = len(xs)
+    h_int = xs[-1]/n
+    shifted_xs = [np.linspace(-m, n * h_int - m, n) for m in means]
+    shifted_xs = np.array(shifted_xs)
+    tics = round((signal_range[1] - signal_range[0]) / h_int)
+    dig = np.array([np.digitize(s_xs, bins=np.linspace(signal_range[0],
+                                              signal_range[1],
+                                              tics))
+           for s_xs in shifted_xs])
+    shifted_signals = []
+    for signal, d in zip(signals, dig):
+        shifted_signals.append(signal[(d>0)&(d<tics)])
+        
+    shifted_signals = np.array([ss for ss in shifted_signals if len(ss)==tics])
+    mean_signal_x = np.linspace(signal_range[0], signal_range[1], tics)
+    mean_signal_y = np.mean(shifted_signals, axis=0)
+    return mean_signal_x, mean_signal_y
