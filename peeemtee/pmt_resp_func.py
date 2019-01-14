@@ -186,7 +186,9 @@ class ChargeHistFitter(object):
                                     print_level=print_level)
 
             self.popt_ped = popt_ped
+            self.pcov_ped = pcov_ped
             self.popt_spe = popt_spe
+            self.pcov_spe = pcov_spe
             self.opt_ped_values = self.gaussian(x, **popt_ped)
             self.opt_spe_values = self.gaussian(x, **popt_spe)
 
@@ -257,6 +259,7 @@ class ChargeHistFitter(object):
         m = Minuit(qfunc, errordef=errordef, pedantic=False,
                    print_level=print_level, **kwargs)
         m.migrad()
-
+        m.hesse()
         self.popt_prf = m.values
         self.opt_prf_values = func(x, **m.values)
+        self.pcov_prf = m.covariance
