@@ -18,12 +18,15 @@ def fit_gaussian(x, y, errordef=10, print_level=1):
         x values of the data
     y: np.array
         y values of the data
-
+    errordef: int, default: 10
+    print_level: int, default: 1
+        0: quiet, 1: print fit details
+    
     Returns
     -------
-    dict(float):
+    (dict, dict):
         optimal parameters {"mean": mean, "sigma": sigma, "A": A}
-
+        covariance matrix {("mean","mean"): cov_mean, ("mean", "sigma"): ...}
     """
     def make_quality_function(x, y):
         def quality_function(mean, sigma, A):
@@ -45,8 +48,8 @@ def fit_gaussian(x, y, errordef=10, print_level=1):
     m = Minuit(qfunc, errordef=errordef, pedantic=False,
                print_level=print_level, **kwargs)
     m.migrad()
-
-    return m.values
+    m.hesse()
+    return (m.values, m.covariance)
 
 class ChargeHistFitter(object):
     """
@@ -143,16 +146,18 @@ class ChargeHistFitter(object):
         n_sigma: float
             spe fit range starts at:
             mean of pedestal + n_sigma * sigma of pedestal
-
+        print_level: int, default: 1
+            0: quiet, 1: print fit details
         """
 
         if self.fixed_ped_spe:
-            popt = fit_gaussian(x, y)
+            popt, pcov = fit_gaussian(x, y)
             self.popt_gauss = popt
             self.nphe = popt["mean"] / self.spe_charge
             self.entries = np.max(y)
             self.n_gaussians = int(self.nphe * 2)
-            print(self.entries)
+            if print_level > 0:
+                print(self.entries)
 
         else:
 
@@ -162,7 +167,7 @@ class ChargeHistFitter(object):
                 cond = x < valley
                 x_ped, y_ped = x[cond], y[cond]
 
-            popt_ped = fit_gaussian(x_ped, y_ped, print_level=print_level)
+            popt_ped, pcov_ped = fit_gaussian(x_ped, y_ped, print_level=print_level)
 
             if valley is None:
                 if spe_upper_bound is None:
@@ -177,7 +182,7 @@ class ChargeHistFitter(object):
                     cond = (x > valley) & (x < spe_upper_bound)
             x_spe, y_spe = x[cond], y[cond]
 
-            popt_spe = fit_gaussian(x_spe, y_spe, errordef=errordef,
+            popt_spe, pcov_spe = fit_gaussian(x_spe, y_spe, errordef=errordef,
                                     print_level=print_level)
 
             self.popt_ped = popt_ped
@@ -206,7 +211,8 @@ class ChargeHistFitter(object):
             parses "errordef" from iminuit
         mod: bool
             if True: use modified pmt response function (pmt_resp_func_mod)
-
+        print_level: int, default: 1
+            0: quiet, 1: print fit details
         """
         if n_gaussians:
             self.n_gaussians = n_gaussians
