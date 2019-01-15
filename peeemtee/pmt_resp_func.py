@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 
 import numpy as np
 from scipy.stats.distributions import poisson
@@ -7,6 +7,7 @@ from iminuit import Minuit
 
 def gaussian(x, mean, sigma, A):
     return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
+
 
 def fit_gaussian(x, y, errordef=10, print_level=1):
     """
@@ -21,10 +22,10 @@ def fit_gaussian(x, y, errordef=10, print_level=1):
     errordef: int, default: 10
     print_level: int, default: 1
         0: quiet, 1: print fit details
-    
+
     Returns
     -------
-    (dict, dict):
+    dict, dict:
         optimal parameters {"mean": mean, "sigma": sigma, "A": A}
         covariance matrix {("mean","mean"): cov_mean, ("mean", "sigma"): ...}
     """
@@ -49,7 +50,8 @@ def fit_gaussian(x, y, errordef=10, print_level=1):
                print_level=print_level, **kwargs)
     m.migrad()
     m.hesse()
-    return (m.values, m.covariance)
+    return m.values, m.covariance
+
 
 class ChargeHistFitter(object):
     """
@@ -71,7 +73,7 @@ class ChargeHistFitter(object):
         self.fixed_ped_spe = False
 
     def gaussian(self, x, mean, sigma, A):
-        return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5*(x-mean)**2 / sigma**2)
+        return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5*(x-mean)**2/sigma**2)
 
     def pmt_resp_func_mod(self,
                           x,
@@ -88,7 +90,10 @@ class ChargeHistFitter(object):
             arg = (x - (i * spe_charge + self.popt_ped["mean"])) / sigma
             func += pois / sigma * np.exp(-0.5 * arg**2)
         func = entries * func / np.sqrt(2 * np.pi)
-        func += self.gaussian(x, spe_charge/prep_fac, spe_sigma/np.sqrt(prep_fac), prep_A)
+        func += self.gaussian(x,
+                              spe_charge/prep_fac,
+                              spe_sigma/np.sqrt(prep_fac),
+                              prep_A)
         return func
 
     def pmt_resp_func(self,
@@ -167,7 +172,9 @@ class ChargeHistFitter(object):
                 cond = x < valley
                 x_ped, y_ped = x[cond], y[cond]
 
-            popt_ped, pcov_ped = fit_gaussian(x_ped, y_ped, print_level=print_level)
+            popt_ped, pcov_ped = fit_gaussian(x_ped,
+                                              y_ped,
+                                              print_level=print_level)
 
             if valley is None:
                 if spe_upper_bound is None:
@@ -183,7 +190,7 @@ class ChargeHistFitter(object):
             x_spe, y_spe = x[cond], y[cond]
 
             popt_spe, pcov_spe = fit_gaussian(x_spe, y_spe, errordef=errordef,
-                                    print_level=print_level)
+                                              print_level=print_level)
 
             self.popt_ped = popt_ped
             self.pcov_ped = pcov_ped
@@ -193,7 +200,7 @@ class ChargeHistFitter(object):
             self.opt_spe_values = self.gaussian(x, **popt_spe)
 
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
-            self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
+            self.nphe = -np.log(popt_ped["A"]/(popt_ped["A"] + popt_spe["A"]))
             self.n_gaussians = 10
 
     def fit_pmt_resp_func(self, x, y, n_gaussians=None, errordef=10,
@@ -243,16 +250,18 @@ class ChargeHistFitter(object):
         else:
             entries_start = (self.popt_ped["A"] + self.popt_spe["A"])
 
-        kwargs = {"nphe": self.nphe, "spe_charge": self.spe_charge,
-                  "spe_sigma": self.popt_spe["sigma"], "entries": entries_start}
+        kwargs = {"nphe": self.nphe,
+                  "spe_charge": self.spe_charge,
+                  "spe_sigma": self.popt_spe["sigma"],
+                  "entries": entries_start}
         if self.fixed_ped_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
         if mod:
             kwargs["prep_fac"] = 7
-            #kwargs["fix_prep_mean"] = True
+            # kwargs["fix_prep_mean"] = True
             kwargs["limit_prep_fac"] = (1, 20)
-            #kwargs["fix_prep_sigma"] = True
+            # kwargs["fix_prep_sigma"] = True
             kwargs["prep_A"] = entries_start / 100
             kwargs["limit_prep_A"] = (0, entries_start)
 
