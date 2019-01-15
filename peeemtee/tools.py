@@ -142,7 +142,7 @@ def calculate_mean_signal(signals, xs, signal_range, p0=None):
     shifted_signals = []
     for signal, d in zip(signals, dig):
         shifted_signals.append(signal[(d>0)&(d<tics)])
-        
+
     shifted_signals = np.array([ss for ss in shifted_signals if len(ss)==tics])
     mean_signal_x = np.linspace(signal_range[0], signal_range[1], tics)
     mean_signal_y = np.mean(shifted_signals, axis=0)
