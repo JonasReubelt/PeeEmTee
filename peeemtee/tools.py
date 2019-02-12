@@ -128,8 +128,11 @@ def calculate_mean_signal(signals, xs, signal_range, p0=None):
     """
     means = []
     for signal in signals:
-        popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
-        means.append(popt[0])
+        try:
+            popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
+            means.append(popt[0])
+        except RuntimeError:
+            print("bad fit!")
     n = len(xs)
     h_int = xs[-1]/n
     shifted_xs = [np.linspace(-m, n * h_int - m, n) for m in means]
