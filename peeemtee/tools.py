@@ -103,7 +103,7 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     return x.flatten(), y.flatten(), z.flatten()
 
 
-def calculate_mean_signal(signals, xs, signal_range, p0=None):
+def calculate_mean_signal(signals, xs, signal_range, p0=None, print_level=1):
     """
     Calculates mean signals from several PMT signals
 
@@ -132,7 +132,8 @@ def calculate_mean_signal(signals, xs, signal_range, p0=None):
             popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
             means.append(popt[0])
         except RuntimeError:
-            print("bad fit!")
+            if print_level > 0:
+                print("bad fit!")
     n = len(xs)
     h_int = xs[-1]/n
     shifted_xs = [np.linspace(-m, n * h_int - m, n) for m in means]
