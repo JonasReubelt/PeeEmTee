@@ -66,7 +66,7 @@ class ChargeHistFitter(object):
         fitter.fit_pmt_resp_func(x, y)
 
     Plotting the results:
-        plt.plot(x, fitter.pmt_resp_func(x, **fitter.popt_pmt_resp_func))
+        plt.plot(x, fitter.pmt_resp_func(x, **fitter.popt_prf))
 
     """
     def __init__(self):
