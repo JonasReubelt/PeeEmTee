@@ -103,7 +103,7 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     return x.flatten(), y.flatten(), z.flatten()
 
 
-def calculate_mean_signal(signals, xs, signal_range, p0=None, print_level=1):
+def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
     """
     Calculates mean signals from several PMT signals
 
@@ -114,10 +114,8 @@ def calculate_mean_signal(signals, xs, signal_range, p0=None, print_level=1):
         [[signal1],
         [signal2],
         ...]
-    xs: np.array
-        x values of the signals
-    signal_range: tuple(float)
-        range around mean in which mean signal is calculated
+    use_for_shift: string
+        "min" to use minimum of signal or "fit" to use mean of gaussian fit
     p0: list
         start parameters for gaussian fit
 
@@ -126,28 +124,23 @@ def calculate_mean_signal(signals, xs, signal_range, p0=None, print_level=1):
     mean_signal: (np.array, np.array)
         x and y values of mean signal
     """
-    means = []
+    rolled_signals = []
+    nx = signals.shape[1]
+    xs = np.arange(nx)
     for signal in signals:
-        try:
-            popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
-            means.append(popt[0])
-        except RuntimeError:
-            if print_level > 0:
-                print("bad fit!")
-    n = len(xs)
-    h_int = xs[-1]/n
-    shifted_xs = [np.linspace(-m, n * h_int - m, n) for m in means]
-    shifted_xs = np.array(shifted_xs)
-    tics = round((signal_range[1] - signal_range[0]) / h_int)
-    dig = np.array([np.digitize(s_xs, bins=np.linspace(signal_range[0],
-                                              signal_range[1],
-                                              tics))
-           for s_xs in shifted_xs])
-    shifted_signals = []
-    for signal, d in zip(signals, dig):
-        shifted_signals.append(signal[(d>0)&(d<tics)])
-
-    shifted_signals = np.array([ss for ss in shifted_signals if len(ss)==tics])
-    mean_signal_x = np.linspace(signal_range[0], signal_range[1], tics)
-    mean_signal_y = np.mean(shifted_signals, axis=0)
-    return mean_signal_x, mean_signal_y
+        if use_for_shift == "fit":
+            try:
+                popt, _ = curve_fit(pt.gaussian, xs, signal, p0=p0)
+                shift = int(round(popt[0]))
+            except RuntimeError:
+                if print_level > 0:
+                    print("bad fit!")
+        elif use_for_shift == "min":
+            shift = np.argmin(signal)
+        else:
+            print(f"Unknown option for use_for_shift: \"{use_for_shift}\"")
+            print("options are: \"min\" or \"fit\"")
+            return None
+        rolled_signals.append(np.roll(signal, -shift + int(nx / 2)))
+    mean_signal = np.mean(rolled_signals, axis=0)
+    return mean_signal
