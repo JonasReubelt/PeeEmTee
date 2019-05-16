@@ -130,7 +130,7 @@ def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
     for signal in signals:
         if use_for_shift == "fit":
             try:
-                popt, _ = curve_fit(pt.gaussian, xs, signal, p0=p0)
+                popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
                 shift = int(round(popt[0]))
             except RuntimeError:
                 if print_level > 0:
