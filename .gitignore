@@ -3,3 +3,4 @@ dist
 *.egg-info
 *.pyc
 */version.txt
+doc/_build
