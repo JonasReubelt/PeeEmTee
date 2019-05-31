@@ -1,31 +1,42 @@
-#!/usr/bin/env python
-from setuptools import setup
+#!usr/bin/env python
+# -*- coding: utf-8 -*-
+# Filename: setup.py
+"""
+peeemtee setup script.
 
+"""
 
+from setuptools import setup, find_packages
+
+PACKAGE_NAME = 'peeemtee'
+URL = 'https://github.com/JonasReubelt/PeeEmTee'
+DESCRIPTION = 'Auxiliary package for PMT analyses'
 __author__ = 'Jonas Reubelt'
-VERSION = "0.0.4"
+__email__ = 'jreubelt@km3net.de'
 
 with open('requirements.txt') as fobj:
-    requirements = [l.strip() for l in fobj.readlines()]
+    REQUIREMENTS = [l.strip() for l in fobj.readlines()]
 
-setup(name='peeemtee',
-      version=VERSION,
-      url='https://github.com/JonasReubelt/PeeEmTee',
-      description='PeeEmTee',
-      author=__author__,
-      author_email='jonas.reujon.reubelt@fau.de',
-      packages=['peeemtee'],
-      include_package_data=True,
-      platforms='any',
-      install_requires=requirements,
-      entry_points={
-          'console_scripts': [
-          ],
-      },
-      classifiers=[
+setup(
+    name=PACKAGE_NAME,
+    url=URL,
+    description=DESCRIPTION,
+    author=__author__,
+    author_email=__email__,
+    packages=find_packages(),
+    include_package_data=True,
+    platforms='any',
+    setup_requires=['setuptools_scm'],
+    use_scm_version={
+        'write_to': '{}/version.txt'.format(PACKAGE_NAME),
+        'tag_regex': r'^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$',
+    },
+    install_requires=REQUIREMENTS,
+    python_requires='>=2.7',
+    classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'Programming Language :: Python',
-      ],
+    ],
 )

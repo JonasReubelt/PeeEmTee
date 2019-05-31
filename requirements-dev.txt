@@ -1,0 +1,15 @@
+numpydoc
+pydocstyle
+pytest
+pytest-cov
+pytest-flake8
+pytest-pylint
+pytest-watch
+sphinx-rtd-theme
+sphinx
+sphinxcontrib-napoleon
+sphinxcontrib-programoutput
+sphinxcontrib-websupport
+sphinx-autoapi
+setuptools_scm
+yapf>=0.25

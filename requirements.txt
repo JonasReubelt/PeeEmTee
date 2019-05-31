@@ -2,3 +2,4 @@ numpy
 scipy
 matplotlib
 iminuit
+setuptools_scm

@@ -1,0 +1,66 @@
+image: docker.km3net.de/base/python:3
+
+stages:
+  - test
+  - coverage
+  - doc
+
+before_script:
+    - make install-dev
+
+test-py2:
+    image: docker.km3net.de/base/python:2
+    stage: test
+    script:
+        - make test
+
+test-py3.5:
+    image: docker.km3net.de/base/python:3.5
+    stage: test
+    script:
+        - make test
+
+test-py3.6:
+    image: docker.km3net.de/base/python:3.6
+    stage: test
+    script:
+        - make test
+
+test-py3.7:
+    image: docker.km3net.de/base/python:3.7
+    stage: test
+    script:
+        - make test
+
+code-style:
+    image: docker.km3net.de/base/python:3.7
+    stage: test
+    script:
+        - yapf -r -d -e "venv" .
+    allow_failure: true
+
+coverage:
+    image: docker.km3net.de/base/python:3.6
+    stage: coverage
+    script:
+        - "make test-cov|grep TOTAL| awk '{printf \"COVERAGE: %.2f%%\", (1-$3/$2)*100 }'"
+    coverage: '/COVERAGE:\s*([0-9]*\.[0-9]*%)/'
+    artifacts:
+        paths:
+            - reports/coverage
+
+pages:
+    image: docker.km3net.de/base/python:3.6
+    stage: doc
+    script:
+        - cd doc && make clean && cd ..
+        - make doc
+        - mv doc/_build/html public/
+        - mv reports/coverage public/coverage
+    artifacts:
+        paths:
+            - public
+    cache: {}
+    only:
+        - tags
+        - master
