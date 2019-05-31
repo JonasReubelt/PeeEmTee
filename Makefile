@@ -1,4 +1,4 @@
-PKGNAME=foo
+PKGNAME=peeemtee
 
 default: install
 
