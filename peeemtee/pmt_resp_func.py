@@ -265,7 +265,8 @@ class ChargeHistFitter(object):
             func = self.pmt_resp_func_exp
         if mod == "uap":
             func = self.pmt_resp_func_uap
-
+        self.used_fit_function = func
+        
         def make_quality_function(x, y, mod):
             if not mod:
                 def quality_function(nphe, ped_mean, ped_sigma,spe_charge,
