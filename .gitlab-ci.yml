@@ -8,18 +8,6 @@ stages:
 before_script:
     - make install-dev
 
-test-py2:
-    image: docker.km3net.de/base/python:2
-    stage: test
-    script:
-        - make test
-
-test-py3.5:
-    image: docker.km3net.de/base/python:3.5
-    stage: test
-    script:
-        - make test
-
 test-py3.6:
     image: docker.km3net.de/base/python:3.6
     stage: test
