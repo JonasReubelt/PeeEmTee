@@ -9,19 +9,55 @@ from .tools import gaussian, calculate_charges, calculate_histogram_data
 from .pmt_resp_func import ChargeHistFitter
 
 
-def find_nominal_hv(f, nominal_gain):
-    gains = []
-    hvs = []
-    keys = f.keys()
-    for key in keys:
-        gains.append(f[key]["fit_results"]["gain"].value)
-        hvs.append(int(key))
-    gains = np.array(gains)
-    hvs = np.array(hvs)
+class FileIterator(tp.Module):
+    """
+    iterates over a set of filenames
+    """
 
-    diff = abs(np.array(gains) - nominal_gain)
-    nominal_hv = int(hvs[diff == np.min(diff)])
-    return nominal_hv
+    def configure(self):
+        self.filenames = self.get("filenames")
+        self.max_count = len(self.filenames)
+        self.index = 0
+
+    def process(self, blob):
+        if self.index >= self.max_count:
+            self.log.critical("All done!")
+            raise StopIteration
+        blob["filename"] = self.filenames[self.index]
+        self.index += 1
+
+    def finish(self):
+        self.print(f"Read {self.index} files!")
+
+
+class NominalHVFinder(tp.Module):
+    """
+    finds the nominal HV for a certain gain
+    """
+
+    def configure(self):
+        self.gain = self.get("gain")
+
+    def process(self, blob):
+        filename = blob["filename"]
+        f = h5py.File(filename, "r")
+        nominal_hv = self.find_nominal_hv(filename, self.gain)
+        blob["nominal_gain"] = self.gain
+        blob["nominal_hv"] = nominal_hv
+
+    def find_nominal_hv(self, f, nominal_gain):
+        gains = []
+        hvs = []
+        keys = f.keys()
+        for key in keys:
+            gains.append(f[key]["fit_results"]["gain"].value)
+            hvs.append(int(key))
+        gains = np.array(gains)
+        hvs = np.array(hvs)
+
+        diff = abs(np.array(gains) - nominal_gain)
+        nominal_hv = int(hvs[diff == np.min(diff)])
+        return nominal_hv
 
 
 class FileReader(tp.Module):
@@ -30,33 +66,19 @@ class FileReader(tp.Module):
     into the blob
     """
 
-    def configure(self):
-        self.filenames = self.get("filenames")
-        self.gain = self.get("gain")
-        self.max_count = len(self.filenames)
-        self.index = 0
-
     def process(self, blob):
-        if self.index >= self.max_count:
-            self.log.critical("All done!")
-            raise StopIteration
-        filename = self.filenames[self.index]
+        filename = blob["filename"]
         blob["pmt_id"] = filename.split("/")[-1].split(".")[0]
-        self.print(f"Current File: {filename}")
+        self.print(f"Reading file: {filename}")
         f = h5py.File(filename, "r")
-        nominal_hv = find_nominal_hv(f, self.gain)
-        blob["nominal_gain"] = self.gain
+        nominal_hv = blob["nominal_hv"]
         blob["nominal_hv"] = nominal_hv
         blob["waveforms"] = f[f"{nominal_hv}"]["waveforms"][:]
         blob["h_int"] = f[f"{nominal_hv}"]["waveform_info/h_int"].value
         blob["v_gain"] = f[f"{nominal_hv}"]["waveform_info/v_gain"].value
         blob["gain_norm"] = blob["v_gain"] * blob["h_int"] / 50 / 1.6022e-19
         f.close()
-        self.index += 1
         return blob
-
-    def finish(self):
-        self.print(f"Read {self.index} files!")
 
 
 class ChargeCalculator(tp.Module):
@@ -78,7 +100,7 @@ class ChargeCalculator(tp.Module):
         )
         charges = charges * blob["gain_norm"]
         blob["charges"] = charges
-        x, y = calculate_histogram_data(charges, bins=200, range=(-0.5e7, 3e7))
+        x, y = calculate_histogram_data(charges, bins=200, range=(-0.3e7, 4e7))
         blob["charge_distribution"] = (x, y)
         return blob
 
@@ -241,7 +263,7 @@ class ResultWriter(tp.Module):
         self.filename = self.get("filename")
         self.outfile = open(self.filename, "w")
         self.outfile.write(
-            f"hv@5e6 "
+            f"hv "
             f"nphe peak_to_valley TT[ns] TTS[ns] "
             f"pre_pulse_prob delayed_pulse_prob "
             f"pre_pulse_prob_charge\n"

@@ -3,8 +3,15 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
+
 def gaussian(x, mean, sigma, A):
-    return A / np.sqrt(2*np.pi) / sigma * np.exp(-.5 * (x-mean)**2 / sigma**2)
+    return (
+        A
+        / np.sqrt(2 * np.pi)
+        / sigma
+        * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
+    )
+
 
 def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
     """
@@ -38,7 +45,7 @@ def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
     return charges
 
 
-def calculate_histogram_data(data, bins=10, range=None):
+def calculate_histogram_data(data, bins=10, range=None, normed=False):
     """
     Calculates values and bin centres of a histogram of a set of data
 
@@ -50,6 +57,8 @@ def calculate_histogram_data(data, bins=10, range=None):
         number of bins of the histogram
     range: tuple(int)
         lower and upper range of the bins
+    normed: boolean
+        set to True to norm the histogram data
 
     Returns
     -------
@@ -59,7 +68,7 @@ def calculate_histogram_data(data, bins=10, range=None):
         values of the histogram
 
     """
-    y, x = np.histogram(data, bins=bins, range=range)
+    y, x = np.histogram(data, bins=bins, range=range, normed=normed)
     x = x[:-1]
     x = x + (x[1] - x[0]) / 2
     return x, y
@@ -92,12 +101,11 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
 
     """
     times = np.tile(np.arange(waveforms.shape[1]), (waveforms.shape[0], 1))
-    z, xs, ys = np.histogram2d(times.flatten(),
-                                   waveforms.flatten(),
-                                   bins=bins,
-                                   range=range)
-    xs = (xs + (xs[1] - xs[0])/2)[:-1]
-    ys = (ys + (ys[1] - ys[0])/2)[:-1]
+    z, xs, ys = np.histogram2d(
+        times.flatten(), waveforms.flatten(), bins=bins, range=range
+    )
+    xs = (xs + (xs[1] - xs[0]) / 2)[:-1]
+    ys = (ys + (ys[1] - ys[0]) / 2)[:-1]
     x = np.array([[x] * bins[0] for x in xs])
     y = np.array(list(ys) * bins[1])
     return x.flatten(), y.flatten(), z.flatten()
@@ -138,8 +146,8 @@ def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
         elif use_for_shift == "min":
             shift = np.argmin(signal)
         else:
-            print(f"Unknown option for use_for_shift: \"{use_for_shift}\"")
-            print("options are: \"min\" or \"fit\"")
+            print(f'Unknown option for use_for_shift: "{use_for_shift}"')
+            print('options are: "min" or "fit"')
             return None
         rolled_signals.append(np.roll(signal, -shift + int(nx / 2)))
     mean_signal = np.mean(rolled_signals, axis=0)
