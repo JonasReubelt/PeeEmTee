@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
 import numpy as np
+import codecs
 from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import thepipe as tp
 import h5py
 from .tools import gaussian, calculate_charges, calculate_histogram_data
 from .pmt_resp_func import ChargeHistFitter
+from .constants import hama_phd_qe
 
 
-class FileIterator(tp.Module):
+class FilePump(tp.Module):
     """
     iterates over a set of filenames
     """
@@ -21,13 +24,128 @@ class FileIterator(tp.Module):
 
     def process(self, blob):
         if self.index >= self.max_count:
-            self.log.critical("All done!")
             raise StopIteration
         blob["filename"] = self.filenames[self.index]
         self.index += 1
+        return blob
 
     def finish(self):
         self.print(f"Read {self.index} files!")
+
+
+class QECalibrator(tp.Module):
+    """Reads measured currents from PMT and PHD and calculates the QE of the PMT
+    """
+
+    def configure(self):
+        self.phd_filenames = self.get("phd_filenames")
+        self.global_qe_shift = self.get("global_qe_shift")
+        phd_qe = hama_phd_qe.T
+        self.phd_qe_interp = interp1d(phd_qe[0], phd_qe[1], kind="cubic")
+
+    def process(self, blob):
+        pmt_filename = blob["filename"]
+        phd_filename = choose_ref(self.phd_filenames, pmt_filename)
+        wl_pmt, i_pmt = read_spectral_scan(pmt_filename)
+        wl_phd, i_phd = read_spectral_scan(phd_filename)
+        if np.allclose(wl_pmt, wl_phd):
+            wl = wl_pmt + self.global_qe_shift
+        else:
+            self.log.error("PMT and PHD wavelengths do not match!")
+            raise StopIteration
+        qe = i_pmt / i_phd * self.phd_qe_interp(wl) / 100
+        blob["wl"] = wl
+        blob["qe"] = qe
+        blob["pmt_id"] = pmt_filename.split("/")[-1].split(".")[0]
+        blob["global_qe_shift"] = self.global_qe_shift
+        return blob
+
+
+def read_spectral_scan(filename):
+    """Reads wavelengths and currents from spectral PMT or PHD scan
+
+    Parameters
+    ----------
+    filename: str
+
+    Returns
+    -------
+    (wavelengths, currents): (np.array(float), np.array(float))
+    """
+    data = np.genfromtxt(filename, unpack=True)
+    with codecs.open(filename, "r", encoding="utf-8", errors="ignore") as f:
+        dcs = f.read().split("\n")[-2].split("\t")
+    dc = (float(dcs[-2]) + float(dcs[-1])) / 2
+    wavelengths = data[0]
+    currents = data[1] - dc
+    return wavelengths, currents
+
+
+def read_time(filename):
+    """Reads time of a spectral PMT or PHD scan
+
+    Parameters
+    ----------
+    filename: str
+
+    Returns
+    -------
+    time: str
+    """
+    f = codecs.open(filename, "r", encoding="utf-8", errors="ignore")
+    time = f.read().split("\n")[2].split(" ")[2]
+    return time
+
+
+def get_sec(time_str):
+    """Converts time string to seconds
+
+    Parameters
+    ----------
+    time_str: str
+
+    Returns
+    -------
+    seconds: int
+    """
+    h, m, s = time_str.split(":")
+    seconds = int(h) * 3600 + int(m) * 60 + int(s)
+    return seconds
+
+
+def choose_ref(phd_filenames, pmt_filename):
+    """Chooses reference measurement closest (in time) to the actual measurement
+
+    Parameters
+    ----------
+    phd_filenames: list(str)
+    pmt_filename: str
+
+    Returns
+    -------
+    phd_filename: str
+    """
+    diffs = []
+    pmt_time = get_sec(read_time(pmt_filename))
+    for filename in phd_filenames:
+        phd_time = get_sec(read_time(filename))
+        diffs.append(abs(pmt_time - phd_time))
+    phd_filename = phd_filenames[np.argmin(diffs)]
+    return phd_filename
+
+
+class QEWriter(tp.Module):
+    """Writes QE in text file"""
+
+    def configure(self):
+        self.filepath = self.get("filepath")
+
+    def process(self, blob):
+        shift = blob["global_qe_shift"]
+        pmt_id = blob["pmt_id"]
+        qe_filename = f"{self.filepath}/qe_{pmt_id}_wl_shift_{shift}_nm.txt"
+        np.savetxt(qe_filename, np.array([blob["wl"], blob["qe"]]).T)
+        return blob
 
 
 class NominalHVFinder(tp.Module):
@@ -263,6 +381,7 @@ class ResultWriter(tp.Module):
         self.filename = self.get("filename")
         self.outfile = open(self.filename, "w")
         self.outfile.write(
+            f"pmt_id "
             f"hv "
             f"nphe peak_to_valley TT[ns] TTS[ns] "
             f"pre_pulse_prob delayed_pulse_prob "
@@ -271,6 +390,7 @@ class ResultWriter(tp.Module):
 
     def process(self, blob):
         self.outfile.write(
+            f"{blob['pmt_id']} "
             f"{blob['nominal_hv']} "
             f"{blob['popt_prf']['nphe']} "
             f"{blob['peak_to_valley']} "
