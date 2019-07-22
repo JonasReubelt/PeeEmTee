@@ -3,3 +3,4 @@ scipy
 matplotlib
 iminuit
 setuptools_scm
+numba

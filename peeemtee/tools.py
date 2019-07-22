@@ -2,6 +2,7 @@
 
 import numpy as np
 from scipy.optimize import curve_fit
+from numba import jit
 
 
 def gaussian(x, mean, sigma, A):
@@ -152,3 +153,42 @@ def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
         rolled_signals.append(np.roll(signal, -shift + int(nx / 2)))
     mean_signal = np.mean(rolled_signals, axis=0)
     return mean_signal
+
+
+@jit(nopython=True)
+def peak_finder(waveforms, threshold):
+    """
+    Finds peaks in waveforms
+
+    Parameters
+    ----------
+    waveforms: np.array
+        2D numpy array with one waveform (y-values) in each row
+        [[waveform1],
+        [waveform2],
+        ...]
+    threshold: float
+        voltage value the waveform has to cross in order to identify a peak
+
+    Returns
+    -------
+    peak_positions: list(list(floats))
+        x and y values of mean signal
+    """
+    peak_positions = []
+    I, J = waveforms.shape
+    for i in range(I):
+        peaks = []
+        X = 0
+        x = 0
+        for j in range(J):
+            if waveforms[i][j] <= threshold:
+                X += j
+                x += 1
+                if j + 1 >= J or waveforms[i][j + 1] > threshold:
+                    peaks.append(X / x)
+                    X = 0
+                    x = 0
+        if len(peaks) > 0:
+            peak_positions.append(peaks)
+    return peak_positions

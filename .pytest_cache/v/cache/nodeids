@@ -1,4 +1,5 @@
 [
   "peeemtee/tests/test_tools.py::TestTools::test_calculate_charges",
-  "peeemtee/tests/test_tools.py::TestTools::test_calculate_histogram_data"
+  "peeemtee/tests/test_tools.py::TestTools::test_calculate_histogram_data",
+  "peeemtee/tests/test_tools.py::TestTools::test_peak_finder"
 ]
