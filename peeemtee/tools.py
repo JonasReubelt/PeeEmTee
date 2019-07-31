@@ -107,8 +107,8 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     )
     xs = (xs + (xs[1] - xs[0]) / 2)[:-1]
     ys = (ys + (ys[1] - ys[0]) / 2)[:-1]
-    x = np.array([[x] * bins[0] for x in xs])
-    y = np.array(list(ys) * bins[1])
+    x = np.array([[x] * bins[1] for x in xs])
+    y = np.array(list(ys) * bins[0])
     return x.flatten(), y.flatten(), z.flatten()
 
 

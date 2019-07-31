@@ -159,9 +159,10 @@ class NominalHVFinder(tp.Module):
     def process(self, blob):
         filename = blob["filename"]
         f = h5py.File(filename, "r")
-        nominal_hv = self.find_nominal_hv(filename, self.gain)
+        nominal_hv = self.find_nominal_hv(f, self.gain)
         blob["nominal_gain"] = self.gain
         blob["nominal_hv"] = nominal_hv
+        return blob
 
     def find_nominal_hv(self, f, nominal_gain):
         gains = []
@@ -190,7 +191,6 @@ class FileReader(tp.Module):
         self.print(f"Reading file: {filename}")
         f = h5py.File(filename, "r")
         nominal_hv = blob["nominal_hv"]
-        blob["nominal_hv"] = nominal_hv
         blob["waveforms"] = f[f"{nominal_hv}"]["waveforms"][:]
         blob["h_int"] = f[f"{nominal_hv}"]["waveform_info/h_int"].value
         blob["v_gain"] = f[f"{nominal_hv}"]["waveform_info/v_gain"].value
@@ -237,6 +237,8 @@ class PMTResponseFitter(tp.Module):
         fitter = ChargeHistFitter()
         fitter.pre_fit(x, y, print_level=0)
         fitter.fit_pmt_resp_func(x, y, mod=self.mod, print_level=0)
+        if not fitter.success:
+            return
         blob["popt_prf"] = fitter.popt_prf
         blob["popt_ped"] = fitter.popt_ped
         blob["popt_spe"] = fitter.popt_spe
@@ -385,7 +387,7 @@ class ResultWriter(tp.Module):
             f"hv "
             f"nphe peak_to_valley TT[ns] TTS[ns] "
             f"pre_pulse_prob delayed_pulse_prob "
-            f"pre_pulse_prob_charge\n"
+            f"pre_pulse_prob_charge spe_res\n"
         )
 
     def process(self, blob):
@@ -398,7 +400,8 @@ class ResultWriter(tp.Module):
             f"{blob['TTS']} "
             f"{blob['pre_pulse_prob']} "
             f"{blob['delayed_pulse_prob']} "
-            f"{blob['pre_pulse_prob_charge']}\n"
+            f"{blob['pre_pulse_prob_charge']} "
+            f"{blob['popt_prf']['spe_sigma'] / blob['popt_prf']['spe_charge']}\n"
         )
         self.outfile.flush()
         return blob

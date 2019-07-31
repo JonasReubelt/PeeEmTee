@@ -425,9 +425,15 @@ class ChargeHistFitter(object):
             errordef=errordef,
             pedantic=False,
             print_level=print_level,
+            throw_nan=True,
             **kwargs,
         )
-        self.m.migrad()
+        try:
+            self.m.migrad()
+        except RuntimeError:
+            self.success = False
+        else:
+            self.success = True
         # self.m.hesse()
         self.popt_prf = self.m.values
         self.opt_prf_values = func(x, **self.m.values)
