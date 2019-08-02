@@ -6,4 +6,5 @@ from .tools import calculate_persist_data
 from .tools import calculate_mean_signal
 from .tools import gaussian
 from .tools import peak_finder
+from .tools import calculate_transit_times
 from . import constants 

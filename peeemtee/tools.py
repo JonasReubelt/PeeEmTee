@@ -46,6 +46,36 @@ def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
     return charges
 
 
+def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
+    """
+    Calculates transit times of signals
+
+    Parameters
+    ----------
+    signals: np.array
+        2D numpy array with one signal waveform in each row
+        [[signal1],
+        [signal2],
+        ...]
+    baseline_min: int
+        minimum of baseline calculation window
+    baseline_max: int
+        maximum of baseline calculation window
+    threshold: float
+        transit time is calculated when signal crosses threshold
+
+
+    Returns
+    -------
+    charges: np.array
+        1D array with transit times matching axis 0 of the signals array
+
+    """
+    zeroed_signals = signals - np.mean(signals[:, baseline_min:baseline_max])
+    transit_times = np.argmax(zeroed_signals < threshold, axis=1)
+    return transit_times[transit_times != 0]
+
+
 def calculate_histogram_data(data, bins=10, range=None, normed=False):
     """
     Calculates values and bin centres of a histogram of a set of data
