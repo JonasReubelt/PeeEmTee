@@ -8,8 +8,7 @@ from iminuit import Minuit
 def gaussian(x, mean, sigma, A):
     return (
         A
-        / np.sqrt(2 * np.pi)
-        / sigma
+        / np.sqrt(2 * np.pi * sigma ** 2)
         * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
     )
 
@@ -88,8 +87,7 @@ class ChargeHistFitter(object):
     def gaussian(self, x, mean, sigma, A):
         return (
             A
-            / np.sqrt(2 * np.pi)
-            / sigma
+            / np.sqrt(2 * np.pi * sigma ** 2)
             * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
         )
 
