@@ -384,7 +384,7 @@ class ChargeHistFitter(object):
             return quality_function
 
         qfunc = make_quality_function(x, y, mod=mod)
-
+        self.qfunc = qfunc
         if self.fixed_ped_spe:
             entries_start = self.entries
         else:
