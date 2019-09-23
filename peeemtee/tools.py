@@ -40,8 +40,10 @@ def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
         1D array with charges matching axis 0 of the waveforms array
 
     """
+    sig_ped_ratio = (sig_max - sig_min) / (ped_max - ped_min)
     pedestals = np.sum(waveforms[:, ped_min:ped_max], axis=1)
-    charges = -(np.sum(waveforms[:, sig_min:sig_max], axis=1) - pedestals)
+    signals = np.sum(waveforms[:, sig_min:sig_max], axis=1)
+    charges = -(signals - pedestals * sig_ped_ratio)
 
     return charges
 
