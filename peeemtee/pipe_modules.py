@@ -236,7 +236,9 @@ class PMTResponseFitter(tp.Module):
         x, y = blob["charge_distribution"]
         fitter = ChargeHistFitter()
         fitter.pre_fit(x, y, print_level=0)
-        fitter.fit_pmt_resp_func(x, y, mod=self.mod, print_level=0)
+        fitter.fit_pmt_resp_func(
+            x, y, mod=self.mod, print_level=0, fixed_parameters=[]
+        )
         if not fitter.success:
             return
         blob["popt_prf"] = fitter.popt_prf
