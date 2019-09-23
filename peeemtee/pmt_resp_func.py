@@ -400,7 +400,7 @@ class ChargeHistFitter(object):
         if strong_limits:
             kwargs["limit_nphe"] = (0, self.nphe * 2)
             kwargs["limit_spe_charge"] = (0, self.spe_charge * 2)
-            kwargs["limit_spe_sigma"] = (0, self.spe_sigma * 2)
+            kwargs["limit_spe_sigma"] = (0, self.popt_spe["sigma"] * 2)
             kwargs["entries"] = (0, entries_start * 2)
 
         for parameter in fixed_parameters:
