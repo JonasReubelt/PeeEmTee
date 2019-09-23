@@ -259,6 +259,7 @@ class ChargeHistFitter(object):
         errordef=10,
         print_level=1,
         mod=False,
+        strong_limits=True,
         fixed_parameters=["ped_mean", "ped_sigma"],
     ):
         """
@@ -396,6 +397,12 @@ class ChargeHistFitter(object):
             "ped_mean": self.popt_ped["mean"],
             "ped_sigma": self.popt_ped["sigma"],
         }
+        if strong_limits:
+            kwargs["limit_nphe"] = (0, self.nphe * 2)
+            kwargs["limit_spe_charge"] = (0, self.spe_charge * 2)
+            kwargs["limit_spe_sigma"] = (0, self.spe_sigma * 2)
+            kwargs["entries"] = (0, entries_start * 2)
+
         for parameter in fixed_parameters:
             kwargs[f"fix_{parameter}"] = True
         if self.fixed_ped_spe:
