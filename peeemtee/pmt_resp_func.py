@@ -162,7 +162,13 @@ class ChargeHistFitter(object):
             arg = (x - (i * spe_charge + ped_mean)) / sigma
             func += pois / sigma * np.exp(-0.5 * arg ** 2)
         func = entries * func / np.sqrt(2 * np.pi)
-        func += a * np.exp(b * x) * (x > 0) * (x < (spe_charge - ped_mean))
+        func += (
+            a
+            * np.exp(b * x)
+            * (x > 0)
+            * (x < (spe_charge - ped_mean))
+            * (-1 / (spe_charge) * (x - ped_mean) + 1)
+        )
         return func
 
     def fix_ped_spe(self, ped_mean, ped_sigma, spe_charge, spe_sigma):
@@ -465,7 +471,8 @@ class ChargeHistFitter(object):
             kwargs["a"] = 0.1
         if mod == "sexp":
             kwargs["a"] = 100
-            kwargs["b"] = 1
+            kwargs["b"] = -1
+            kwargs["limit_b"] = (-np.inf, 0)
         if mod == "uap":
             kwargs["uap_mean"] = self.popt_spe["mean"] / 5
             kwargs["uap_sigma"] = self.popt_spe["sigma"] / 5

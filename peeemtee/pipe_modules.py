@@ -72,7 +72,8 @@ def read_spectral_scan(filename):
     -------
     (wavelengths, currents): (np.array(float), np.array(float))
     """
-    data = np.genfromtxt(filename, unpack=True)
+    print(filename)
+    data = np.loadtxt(filename, unpack=True, encoding="latin1")
     with codecs.open(filename, "r", encoding="utf-8", errors="ignore") as f:
         dcs = f.read().split("\n")[-2].split("\t")
     dc = (float(dcs[-2]) + float(dcs[-1])) / 2
