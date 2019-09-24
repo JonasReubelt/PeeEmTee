@@ -75,8 +75,12 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
     transit_times = np.argmax(zeroed_signals < threshold, axis=1)
     return transit_times[transit_times != 0]
 
-
-def calculate_histogram_data(data, bins=10, range=None, normed=False):
+def calculate_histogram_data(*args, **kwargs):
+    print("Deprecated! Use bin_data() instead")
+    return bin_data(*args, **kwargs)
+    
+    
+def bin_data(data, bins=10, range=None, normed=False):
     """
     Calculates values and bin centres of a histogram of a set of data
 
