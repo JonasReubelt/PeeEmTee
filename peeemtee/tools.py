@@ -218,7 +218,7 @@ def peak_finder(waveforms, threshold):
         peaks = []
         X = 0
         x = 0
-        while j < J:
+        for j in range(J):
             if waveforms[i][j] <= threshold:
                 X += j
                 x += 1
@@ -226,8 +226,6 @@ def peak_finder(waveforms, threshold):
                     peaks.append(X / x)
                     X = 0
                     x = 0
-                    j += 10
-            j += 1
         if len(peaks) > 0:
             peak_positions.append(peaks)
     return peak_positions
