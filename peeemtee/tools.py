@@ -77,11 +77,12 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
     transit_times = np.argmax(zeroed_signals < threshold, axis=1)
     return transit_times[transit_times != 0]
 
+
 def calculate_histogram_data(*args, **kwargs):
     print("Deprecated! Use bin_data() instead")
     return bin_data(*args, **kwargs)
-    
-    
+
+
 def bin_data(data, bins=10, range=None, normed=False):
     """
     Calculates values and bin centres of a histogram of a set of data
@@ -217,7 +218,7 @@ def peak_finder(waveforms, threshold):
         peaks = []
         X = 0
         x = 0
-        for j in range(J):
+        while j < J:
             if waveforms[i][j] <= threshold:
                 X += j
                 x += 1
@@ -225,6 +226,37 @@ def peak_finder(waveforms, threshold):
                     peaks.append(X / x)
                     X = 0
                     x = 0
+                    j += 10
+            j += 1
         if len(peaks) > 0:
             peak_positions.append(peaks)
     return peak_positions
+
+
+def find_nominal_hv(f, nominal_gain):
+    """
+    Finds nominal HV of a measured PMT dataset
+
+    Parameters
+    ----------
+    f: h5py.File
+    nominal gain: float
+        gain for which the nominal HV should be found
+
+    Returns
+    -------
+    nominal_hv: int
+        nominal HV
+    """
+    gains = []
+    hvs = []
+    keys = f.keys()
+    for key in keys:
+        gains.append(f[key]["fit_results"]["gain"][()])
+        hvs.append(int(key))
+    gains = np.array(gains)
+    hvs = np.array(hvs)
+
+    diff = abs(np.array(gains) - nominal_gain)
+    nominal_hv = int(hvs[diff == np.min(diff)])
+    return nominal_hv
