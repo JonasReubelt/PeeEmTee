@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.optimize import curve_fit
 from numba import jit
+import h5py
 
 
 def gaussian(x, mean, sigma, A):
@@ -258,3 +259,54 @@ def find_nominal_hv(f, nominal_gain):
     diff = abs(np.array(gains) - nominal_gain)
     nominal_hv = int(hvs[diff == np.min(diff)])
     return nominal_hv
+
+
+def read_waveforms_from_hdf5(filename, voltage=""):
+    """
+    Reads waveforms form hdf5 file
+
+    Parameters
+    ----------
+    filename: string
+    voltage: string
+        waveforms for which measured voltage should be read
+
+    Returns
+    -------
+    waveforms: np.array
+        2D numpy array with one waveform (y-values) in each row
+        [[waveform1],
+        [waveform2],
+        ...]
+    h_int: float
+        horizontal interval between sample points
+    """
+    f = h5py.File(filename, "r")
+    v_gain = f[voltage]["waveform_info"]["v_gain"][()]
+    h_int = f[voltage]["waveform_info"]["h_int"][()]
+    waveforms = f[voltage]["waveforms"][:] * v_gain
+    f.close()
+    return waveforms, h_int
+
+
+def write_waveforms_to_hdf5(raw_waveforms, v_gain, h_int, filename, voltage=""):
+    """
+    Writes waveforms to hdf5 file
+
+    Parameters
+    ----------
+    raw_waveforms: np.array(int)
+        2D numpy array with one waveform (y-values) in each row
+        [[waveform1],
+        [waveform2],
+        ...]
+    v_gain: float
+        converts the integer sample points in waveforms_raw into voltages [V]
+    h_int: float
+        horizontal interval between sample points
+    filename: string
+    voltage: string
+        waveforms for which measured voltage should be written
+
+    """
+    print("not implemented yet!")
