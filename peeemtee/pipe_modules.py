@@ -313,11 +313,20 @@ class PrePulseCalculator(tp.Module):
     calculates pre-pulse probability
     """
 
+    def configure(self):
+        self.time_range = self.get("time_range")
+
     def process(self, blob):
-        max_time = blob["tt_popt"][0] - 10
+        max_time = blob["tt_popt"][0] + self.time_range[1]
+        min_time = blob["tt_popt"][0] + self.time_range[0]
         blob["pre_max_time"] = max_time
+        blob["pre_min_time"] = min_time
         transit_times = blob["transit_times"]
-        n_pre_pulses = len(transit_times[transit_times < max_time])
+        n_pre_pulses = len(
+            transit_times[
+                (transit_times > min_time) & (transit_times < max_time)
+            ]
+        )
         blob["pre_pulse_prob"] = n_pre_pulses / len(transit_times)
         return blob
 
