@@ -232,13 +232,13 @@ def peak_finder(waveforms, threshold):
     return peak_positions
 
 
-def find_nominal_hv(f, nominal_gain):
+def find_nominal_hv(filename, nominal_gain):
     """
     Finds nominal HV of a measured PMT dataset
 
     Parameters
     ----------
-    f: h5py.File
+    filename: string
     nominal gain: float
         gain for which the nominal HV should be found
 
@@ -247,12 +247,15 @@ def find_nominal_hv(f, nominal_gain):
     nominal_hv: int
         nominal HV
     """
+
+    f = h5py.File(filename, "r")
     gains = []
     hvs = []
     keys = f.keys()
     for key in keys:
         gains.append(f[key]["fit_results"]["gain"][()])
         hvs.append(int(key))
+    f.close()
     gains = np.array(gains)
     hvs = np.array(hvs)
 
