@@ -287,8 +287,8 @@ def calculate_rise_times(waveforms, relative_thresholds=(0.1, 0.9)):
     argmins = np.argmin(waveforms, axis=1)
     rise_times = []
     for min, argmin, waveform in zip(mins, argmins, waveforms):
-        below_first_thr = waveform > (min * thresholds[0])
-        below_second_thr = waveform > (min * thresholds[1])
+        below_first_thr = waveform > (min * relative_thresholds[0])
+        below_second_thr = waveform > (min * relative_thresholds[1])
         try:
             first_time = argmin - np.argmax(below_first_thr[:argmin][::-1])
             second_time = argmin - np.argmax(below_second_thr[:argmin][::-1])
