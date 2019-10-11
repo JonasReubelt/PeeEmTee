@@ -264,6 +264,41 @@ def find_nominal_hv(filename, nominal_gain):
     return nominal_hv
 
 
+def calculate_rise_times(waveforms, relative_thresholds=(0.1, 0.9)):
+    """
+    Calculates rise times of waveforms
+
+    Parameters
+    ----------
+    waveforms: np.array
+        2D numpy array with one waveform (y-values) in each row
+        [[waveform1],
+        [waveform2],
+        ...]
+    relative_thresholds: tuple(float)
+        relative lower and upper threshold inbetween which to calculate rise time
+
+    Returns
+    -------
+    rise_times: np.array
+        rise times
+    """
+    mins = np.min(waveforms, axis=1)
+    argmins = np.argmin(waveforms, axis=1)
+    rise_times = []
+    for min, argmin, waveform in zip(mins, argmins, waveforms):
+        below_first_thr = waveform > (min * thresholds[0])
+        below_second_thr = waveform > (min * thresholds[1])
+        try:
+            first_time = argmin - np.argmax(below_first_thr[:argmin][::-1])
+            second_time = argmin - np.argmax(below_second_thr[:argmin][::-1])
+        except ValueError:
+            first_time = 0
+            second_time = 0
+        rise_times.append(second_time - first_time)
+    return np.array(rise_times)
+
+
 def read_waveforms_from_hdf5(filename, voltage=""):
     """
     Reads waveforms form hdf5 file
