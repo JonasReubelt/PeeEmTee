@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import thepipe as tp
 import h5py
-from .tools import gaussian, calculate_charges, calculate_histogram_data
+from .tools import gaussian, calculate_charges, bin_data, calculate_rise_times
 from .pmt_resp_func import ChargeHistFitter
 from .constants import hama_phd_qe
 
@@ -29,8 +29,8 @@ class FilePump(tp.Module):
         self.index += 1
         return blob
 
-    def finish(self):
-        self.print(f"Read {self.index} files!")
+    # def finish(self):
+    # self.print(f"Read {self.index} files!")
 
 
 class QECalibrator(tp.Module):
@@ -170,7 +170,7 @@ class NominalHVFinder(tp.Module):
         hvs = []
         keys = f.keys()
         for key in keys:
-            gains.append(f[key]["fit_results"]["gain"].value)
+            gains.append(f[key]["fit_results"]["gain"][()])
             hvs.append(int(key))
         gains = np.array(gains)
         hvs = np.array(hvs)
@@ -189,12 +189,12 @@ class FileReader(tp.Module):
     def process(self, blob):
         filename = blob["filename"]
         blob["pmt_id"] = filename.split("/")[-1].split(".")[0]
-        self.print(f"Reading file: {filename}")
+        # self.print(f"Reading file: {filename}")
         f = h5py.File(filename, "r")
         nominal_hv = blob["nominal_hv"]
         blob["waveforms"] = f[f"{nominal_hv}"]["waveforms"][:]
-        blob["h_int"] = f[f"{nominal_hv}"]["waveform_info/h_int"].value
-        blob["v_gain"] = f[f"{nominal_hv}"]["waveform_info/v_gain"].value
+        blob["h_int"] = f[f"{nominal_hv}"]["waveform_info/h_int"][()]
+        blob["v_gain"] = f[f"{nominal_hv}"]["waveform_info/v_gain"][()]
         blob["gain_norm"] = blob["v_gain"] * blob["h_int"] / 50 / 1.6022e-19
         f.close()
         return blob
@@ -219,7 +219,7 @@ class ChargeCalculator(tp.Module):
         )
         charges = charges * blob["gain_norm"]
         blob["charges"] = charges
-        x, y = calculate_histogram_data(charges, bins=200, range=(-0.3e7, 4e7))
+        x, y = bin_data(charges, bins=200, range=(-0.3e7, 4e7))
         blob["charge_distribution"] = (x, y)
         return blob
 
@@ -296,7 +296,7 @@ class TransitTimeCalculator(tp.Module):
         )
         transit_times = transit_times[transit_times != 0]
         blob["transit_times"] = transit_times
-        t, n = calculate_histogram_data(transit_times, range=(0, 100), bins=200)
+        t, n = bin_data(transit_times, range=(0, 100), bins=200)
         blob["tt_distribution"] = (t, n)
         mean_0 = t[np.argmax(n)]
         try:
@@ -305,6 +305,41 @@ class TransitTimeCalculator(tp.Module):
             tt_popt = [0, 0, 0]
         blob["tt_popt"] = tt_popt
         blob["TTS"] = tt_popt[1]
+        return blob
+
+
+class RiseTimeCalculator(tp.Module):
+    """
+    rise time calculator
+
+    Parameters
+    ----------
+    relative_thresholds: tuple(float)
+        relative lower and upper threshold inbetween which to calculate
+        rise time
+    relative_charge_range: tuple(float)
+        relative range of spe charge which are used for the rise time
+        calculation
+
+    """
+
+    def configure(self):
+        self.relative_thresholds = self.get("relative_thresholds")
+        self.relative_charge_range = self.get("relative_charge_range")
+
+    def process(self, blob):
+        spe_charge_peak = (
+            blob["popt_prf"]["spe_charge"] - blob["popt_prf"]["ped_mean"]
+        )
+        signals = blob["waveforms"][
+            (blob["charges"] > spe_charge_peak * self.relative_charge_range[0])
+            & (
+                blob["charges"]
+                < spe_charge_peak * self.relative_charge_range[1]
+            )
+        ]
+        rise_times = calculate_rise_times(signals, self.relative_thresholds)
+        blob["rise_time"] = np.mean(rise_times)
         return blob
 
 
@@ -346,14 +381,12 @@ class PrePulseChargeCalculator(tp.Module):
         pre_charges = calculate_charges(
             waveforms, 0, 70, peak_position - 100, peak_position - 30
         )
-        pre_x, pre_y = calculate_histogram_data(
-            pre_charges, range=(-500, 3000), bins=200
-        )
+        pre_x, pre_y = bin_data(pre_charges, range=(-500, 3000), bins=200)
         blob["precharge_pre_charge_distribution"] = (pre_x, pre_y)
         charges = calculate_charges(
             waveforms, 0, 130, peak_position - 30, peak_position + 100
         )
-        x, y = calculate_histogram_data(charges, range=(-500, 3000), bins=200)
+        x, y = bin_data(charges, range=(-500, 3000), bins=200)
         blob["precharge_charge_distribution"] = (x, y)
 
         popt_pre, pcov_pre = curve_fit(
@@ -399,7 +432,7 @@ class ResultWriter(tp.Module):
             f"hv "
             f"nphe peak_to_valley TT[ns] TTS[ns] "
             f"pre_pulse_prob delayed_pulse_prob "
-            f"pre_pulse_prob_charge spe_res\n"
+            f"pre_pulse_prob_charge spe_res rise_time\n"
         )
 
     def process(self, blob):
@@ -413,7 +446,8 @@ class ResultWriter(tp.Module):
             f"{blob['pre_pulse_prob']} "
             f"{blob['delayed_pulse_prob']} "
             f"{blob['pre_pulse_prob_charge']} "
-            f"{blob['popt_prf']['spe_sigma'] / blob['popt_prf']['spe_charge']}\n"
+            f"{blob['popt_prf']['spe_sigma'] / blob['popt_prf']['spe_charge']} "
+            f"{blob['rise_time']}\n"
         )
         self.outfile.flush()
         return blob
