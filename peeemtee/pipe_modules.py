@@ -29,8 +29,8 @@ class FilePump(tp.Module):
         self.index += 1
         return blob
 
-    # def finish(self):
-    # self.print(f"Read {self.index} files!")
+    def finish(self):
+        self.print(f"Read {self.index} files!")
 
 
 class QECalibrator(tp.Module):
@@ -189,7 +189,7 @@ class FileReader(tp.Module):
     def process(self, blob):
         filename = blob["filename"]
         blob["pmt_id"] = filename.split("/")[-1].split(".")[0]
-        # self.print(f"Reading file: {filename}")
+        self.print(f"Reading file: {filename}")
         f = h5py.File(filename, "r")
         nominal_hv = blob["nominal_hv"]
         blob["waveforms"] = f[f"{nominal_hv}"]["waveforms"][:]
