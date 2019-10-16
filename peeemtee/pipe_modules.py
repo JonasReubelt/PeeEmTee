@@ -286,7 +286,6 @@ class TransitTimeCalculator(tp.Module):
         zeroed_signals = blob["waveforms"][signal_mask] - np.mean(
             blob["waveforms"][signal_mask][:, :200]
         )
-
         transit_times = (
             np.argmax(
                 zeroed_signals * blob["v_gain"] < self.voltage_threshold, axis=1
@@ -315,7 +314,8 @@ class RiseTimeCalculator(tp.Module):
     Parameters
     ----------
     relative_thresholds: tuple(float)
-        relative lower and upper threshold inbetween which to calculate
+        relative lower and upper t
+        blob["zeroed_signals"] = zeroed_signalshreshold inbetween which to calculate
         rise time
     relative_charge_range: tuple(float)
         relative range of spe charge which are used for the rise time
@@ -340,6 +340,35 @@ class RiseTimeCalculator(tp.Module):
         ]
         rise_times = calculate_rise_times(signals, self.relative_thresholds)
         blob["rise_time"] = np.mean(rise_times)
+        return blob
+
+
+class MeanSpeAmplitudeCalculator(tp.Module):
+    """
+    mean spe amplitude calculator
+
+    Parameters
+    ----------
+    relative_charge_range: tuple(float) (0.8, 1.2)
+        relative range of spe charge which are used for the mean amplitude
+        calculation
+
+    """
+
+    def configure(self):
+        self.relative_charge_range = self.get("relative_charge_range")
+
+    def process(self, blob):
+        spe_charge_peak = (
+            blob["popt_prf"]["spe_charge"] - blob["popt_prf"]["ped_mean"]
+        )
+        spe_mask = (
+            blob["charges"] > spe_charge_peak * self.relative_charge_range[0]
+        ) & (blob["charges"] < spe_charge_peak * self.relative_charge_range[1])
+        spes = blob["waveforms"][signal_mask]
+        zeroed_spes = (spes.T - np.mean(spes[:, :150], axis=1)).T
+        spe_amplitudes = np.min(zeroed_spes, axis=1)
+        blob["mean_spe_amplitude"] = np.mean(spe_amplitudes)
         return blob
 
 
@@ -432,7 +461,8 @@ class ResultWriter(tp.Module):
             f"hv "
             f"nphe peak_to_valley TT[ns] TTS[ns] "
             f"pre_pulse_prob delayed_pulse_prob "
-            f"pre_pulse_prob_charge spe_res rise_time\n"
+            f"pre_pulse_prob_charge spe_res "
+            f"rise_time mean_spe_amplitude\n"
         )
 
     def process(self, blob):
@@ -447,7 +477,8 @@ class ResultWriter(tp.Module):
             f"{blob['delayed_pulse_prob']} "
             f"{blob['pre_pulse_prob_charge']} "
             f"{blob['popt_prf']['spe_sigma'] / blob['popt_prf']['spe_charge']} "
-            f"{blob['rise_time']}\n"
+            f"{blob['rise_time']} "
+            f"{blob['mean_spe_amplitude']}\n"
         )
         self.outfile.flush()
         return blob
