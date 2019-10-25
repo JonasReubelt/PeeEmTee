@@ -15,6 +15,16 @@ def gaussian(x, mean, sigma, A):
     )
 
 
+def gaussian_with_offset(x, mean, sigma, A, offset):
+    return (
+        A
+        / np.sqrt(2 * np.pi)
+        / sigma
+        * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
+        + offset
+    )
+
+
 def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
     """
     Calculates the charges of an array of waveforms
