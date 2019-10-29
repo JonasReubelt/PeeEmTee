@@ -226,6 +226,8 @@ class ChargeHistFitter(object):
             popt, pcov = fit_gaussian(x, y)
             self.popt_gauss = popt
             self.nphe = popt["mean"] / self.spe_charge
+            if self.nphe < 0:
+                self.nphe = 0
             self.entries = np.max(y)
             self.n_gaussians = int(self.nphe * 2)
             if print_level > 0:
