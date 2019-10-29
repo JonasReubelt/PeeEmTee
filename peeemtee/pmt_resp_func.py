@@ -270,6 +270,8 @@ class ChargeHistFitter(object):
 
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
+            if self.nphe < 0:
+                self.nphe = 0
             self.n_gaussians = 10
 
     def fit_pmt_resp_func(
