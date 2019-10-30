@@ -14,7 +14,7 @@ def gaussian(x, mean, sigma, A):
     )
 
 
-def fit_gaussian(x, y, errordef=10, print_level=1):
+def fit_gaussian(x, y, errordef=10, print_level=1, calculate_hesse=False):
     """
     Fit a gaussian to data using iminuit migrad
 
@@ -61,8 +61,10 @@ def fit_gaussian(x, y, errordef=10, print_level=1):
         **kwargs,
     )
     m.migrad()
-    m.hesse()
-    return m.values, m.covariance
+    if calculate_hesse:
+        m.hesse()
+        return m.values, m.covariance
+    return m.values, None
 
 
 class ChargeHistFitter(object):
