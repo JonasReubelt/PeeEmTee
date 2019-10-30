@@ -473,6 +473,8 @@ class ChargeHistFitter(object):
         if self.fixed_ped_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
+            kwargs["fix_ped_mean"] = True
+            kwargs["fix_ped_sigma"] = True
         if mod == "exp":
             kwargs["w"] = 0.1
             kwargs["a"] = 0.1
