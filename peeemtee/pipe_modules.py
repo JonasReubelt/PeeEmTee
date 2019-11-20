@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+import os
 import numpy as np
 import codecs
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from collections import defaultdict
 import thepipe as tp
 import h5py
 from .tools import gaussian, calculate_charges, bin_data, calculate_rise_times
@@ -246,6 +248,10 @@ class PMTResponseFitter(tp.Module):
         blob["popt_ped"] = fitter.popt_ped
         blob["popt_spe"] = fitter.popt_spe
         blob["fit_function"] = fitter.used_fit_function
+        blob["spe_resolution"] = (
+            fitter.popt_prf["spe_sigma"] / fitter.popt_prf["spe_charge"]
+        )
+        blob["nphe"] = fitter.popt_prf["nphe"]
         return blob
 
 
@@ -304,6 +310,7 @@ class TransitTimeCalculator(tp.Module):
             tt_popt = [0, 0, 0]
         blob["tt_popt"] = tt_popt
         blob["TTS"] = tt_popt[1]
+        blob["transit_time"] = tt_popt[0]
         return blob
 
 
@@ -363,9 +370,11 @@ class MeanSpeAmplitudeCalculator(tp.Module):
             blob["popt_prf"]["spe_charge"] - blob["popt_prf"]["ped_mean"]
         )
         spe_mask = (
-            blob["charges"] > spe_charge_peak * self.relative_charge_range[0]
-        ) & (blob["charges"] < spe_charge_peak * self.relative_charge_range[1])
-        spes = blob["waveforms"][signal_mask]
+            blob["charges"] > (spe_charge_peak * self.relative_charge_range[0])
+        ) & (
+            blob["charges"] < (spe_charge_peak * self.relative_charge_range[1])
+        )
+        spes = blob["waveforms"][spe_mask] * blob["v_gain"]
         zeroed_spes = (spes.T - np.mean(spes[:, :150], axis=1)).T
         spe_amplitudes = np.min(zeroed_spes, axis=1)
         blob["mean_spe_amplitude"] = np.mean(spe_amplitudes)
@@ -455,36 +464,37 @@ class ResultWriter(tp.Module):
 
     def configure(self):
         self.filename = self.get("filename")
-        self.outfile = open(self.filename, "w")
-        self.outfile.write(
-            f"pmt_id "
-            f"hv "
-            f"nphe peak_to_valley TT[ns] TTS[ns] "
-            f"pre_pulse_prob delayed_pulse_prob "
-            f"pre_pulse_prob_charge spe_res "
-            f"rise_time mean_spe_amplitude\n"
-        )
+        self.results = defaultdict(list)
+        self.parameters_to_write = [
+            "pmt_id",
+            "nominal_hv",
+            "nphe",
+            "peak_to_valley",
+            "transit_time",
+            "TTS",
+            "pre_pulse_prob",
+            "delayed_pulse_prob",
+            "pre_pulse_prob_charge",
+            "spe_resolution",
+            "rise_time",
+            "mean_spe_amplitude",
+        ]
 
     def process(self, blob):
-        self.outfile.write(
-            f"{blob['pmt_id']} "
-            f"{blob['nominal_hv']} "
-            f"{blob['popt_prf']['nphe']} "
-            f"{blob['peak_to_valley']} "
-            f"{blob['tt_popt'][0]} "
-            f"{blob['TTS']} "
-            f"{blob['pre_pulse_prob']} "
-            f"{blob['delayed_pulse_prob']} "
-            f"{blob['pre_pulse_prob_charge']} "
-            f"{blob['popt_prf']['spe_sigma'] / blob['popt_prf']['spe_charge']} "
-            f"{blob['rise_time']} "
-            f"{blob['mean_spe_amplitude']}\n"
-        )
-        self.outfile.flush()
+        for parameter in self.parameters_to_write:
+            self.results[parameter].append(blob[parameter])
         return blob
 
     def finish(self):
-        self.outfile.close()
+        outfile = open(self.filename, "w")
+        for parameter in self.parameters_to_write:
+            outfile.write(f"{parameter} ")
+        outfile.write("\n")
+        for i in range(len(self.results[self.parameters_to_write[0]])):
+            for parameter in self.parameters_to_write:
+                outfile.write(f"{self.results[parameter][i]} ")
+            outfile.write("\n")
+        outfile.close()
 
 
 class ResultPlotter(tp.Module):
@@ -499,95 +509,130 @@ class ResultPlotter(tp.Module):
 
     def configure(self):
         self.file_path = self.get("file_path")
+        self.results = defaultdict(list)
+        self.parameters_for_plots = [
+            "pmt_id",
+            "nominal_gain",
+            "nominal_hv",
+            "charge_distribution",
+            "popt_prf",
+            "fit_function",
+            "peak_to_valley",
+            "tt_distribution",
+            "tt_popt",
+            "pre_pulse_prob",
+            "pre_max_time",
+            "delayed_pulse_prob",
+            "delayed_min_time",
+            "pre_pulse_prob_charge",
+            "precharge_charge_distribution",
+            "precharge_pre_charge_distribution",
+            "precharge_popt",
+            "precharge_popt_pre",
+            "precharges_n_sigma",
+            "pre_pulse_prob_charge",
+        ]
 
     def process(self, blob):
-        fig, ax = plt.subplots(2, 2, figsize=(16, 12))
-        ax = ax.flatten()
-        fig.suptitle(
-            f"PMT: {blob['pmt_id']};   "
-            f"nominal gain: {blob['nominal_gain']};   "
-            f"nominal HV: {blob['nominal_hv']}"
-        )
-        ax[0].set_title("charge distribution")
-        ax[1].set_title("TT distribution")
-        if "charge_distribution" in blob:
-            x, y = blob["charge_distribution"]
-            ax[0].semilogy(x, y)
-            ax[0].set_ylim(0.1, 1e5)
-            ax[0].set_xlabel("gain")
-            ax[0].set_ylabel("counts")
-        if "popt_prf" in blob:
-            func = blob["fit_function"]
-            popt_prf = blob["popt_prf"]
-            ax[0].semilogy(x, func(x, **popt_prf))
-            gain = blob["popt_prf"]["spe_charge"]
-            nphe = blob["popt_prf"]["nphe"]
-            ax[0].text(1e7, 10000, f"gain: {round(gain)}")
-            ax[0].text(1e7, 3000, f"nphe: {round(nphe, 3)}")
-            if "peak_to_valley" in blob:
-                ax[0].text(
-                    1e7,
-                    1000,
-                    f"peak to valley: {round(blob['peak_to_valley'], 3)}",
-                )
-        if "tt_distribution" in blob:
-            x, y = blob["tt_distribution"]
-            ax[1].semilogy(x, y)
-            ax[1].set_ylim(0.1, 1e4)
-            ax[1].set_xlabel("transit time [ns]")
-            ax[1].set_ylabel("counts")
-        if "tt_popt" in blob:
-            ax[1].semilogy(x, gaussian(x, *blob["tt_popt"]))
-            ax[1].text(0, 3000, f"TT: {round(blob['tt_popt'][0], 3)} ns")
-            ax[1].text(0, 1000, f"TTS: {round(blob['tt_popt'][1], 3)} ns")
-        if "pre_pulse_prob" in blob:
-            pre_pulse_prob = blob["pre_pulse_prob"]
-            ax[1].text(70, 3000, f"pre: {round(pre_pulse_prob, 3)}")
-            ax[1].axvline(blob["pre_max_time"], color="black", lw=1)
-        if "delayed_pulse_prob" in blob:
-            delayed_pulse_prob = blob["delayed_pulse_prob"]
-            ax[1].text(70, 1000, f"delayed: {round(delayed_pulse_prob, 3)}")
-            ax[1].axvline(blob["delayed_min_time"], color="black", lw=1)
-        if "pre_pulse_prob_charge" in blob:
-            x, y = blob["precharge_charge_distribution"]
-            x_pre, y_pre = blob["precharge_pre_charge_distribution"]
-            popt = blob["precharge_popt"]
-            popt_pre = blob["precharge_popt_pre"]
-            n_sigma = blob["precharges_n_sigma"]
-            ax[2].semilogy(x, y)
-            ax[2].plot(x, gaussian(x, *popt))
-            ax[2].set_ylim(0.1, 1e5)
-            ax[2].axvline(
-                popt[0] + popt[1] * n_sigma,
-                color="black",
-                label=f"mean(ped) + {n_sigma} * sigma(ped)",
-                lw=1,
-            )
-            ax[2].set_xlabel("charge [A.U.]")
-            ax[2].set_ylabel("counts")
-            ax[2].legend()
-
-            ax[3].semilogy(x_pre, y_pre)
-            ax[3].plot(x_pre, gaussian(x_pre, *popt_pre))
-            ax[3].set_ylim(0.1, 1e5)
-            ax[3].axvline(
-                popt_pre[0] + popt_pre[1] * n_sigma,
-                color="black",
-                label=f"mean(ped) + {n_sigma} * sigma(ped)",
-                lw=1,
-            )
-            ax[3].set_xlabel("charge [A.U.]")
-            ax[3].set_ylabel("counts")
-            ax[3].text(
-                1000,
-                1000,
-                f"pre_charge: {round(blob['pre_pulse_prob_charge'], 3)}",
-            )
-            ax[3].legend()
-
-        fig.savefig(
-            f"{self.file_path}/{blob['pmt_id']}_{blob['nominal_gain']}.png",
-            bbox_inches="tight",
-        )
-
+        for parameter in self.parameters_for_plots:
+            self.results[parameter].append(blob[parameter])
         return blob
+
+    def finish(self):
+        os.mkdir(self.file_path)
+        for i in range(len(self.results[self.parameters_for_plots[0]])):
+            fig, ax = plt.subplots(2, 2, figsize=(16, 12))
+            ax = ax.flatten()
+            fig.suptitle(
+                f"PMT: {self.results['pmt_id'][i]};   "
+                f"nominal gain: {self.results['nominal_gain'][i]};   "
+                f"nominal HV: {self.results['nominal_hv'][i]}"
+            )
+            ax[0].set_title("charge distribution")
+            ax[1].set_title("TT distribution")
+            if "charge_distribution" in self.results:
+                x, y = self.results["charge_distribution"][i]
+                ax[0].semilogy(x, y)
+                ax[0].set_ylim(0.1, 1e5)
+                ax[0].set_xlabel("gain")
+                ax[0].set_ylabel("counts")
+            if "popt_prf" in self.results:
+                func = self.results["fit_function"][i]
+                popt_prf = self.results["popt_prf"][i]
+                ax[0].semilogy(x, func(x, **popt_prf))
+                gain = self.results["popt_prf"][i]["spe_charge"]
+                nphe = self.results["popt_prf"][i]["nphe"]
+                ax[0].text(1e7, 10000, f"gain: {round(gain)}")
+                ax[0].text(1e7, 3000, f"nphe: {round(nphe, 3)}")
+                if "peak_to_valley" in self.results:
+                    ax[0].text(
+                        1e7,
+                        1000,
+                        f"peak to valley: {round(self.results['peak_to_valley'][i], 3)}",
+                    )
+            if "tt_distribution" in self.results:
+                x, y = self.results["tt_distribution"][i]
+                ax[1].semilogy(x, y)
+                ax[1].set_ylim(0.1, 1e4)
+                ax[1].set_xlabel("transit time [ns]")
+                ax[1].set_ylabel("counts")
+            if "tt_popt" in self.results:
+                tt_popt = self.results["tt_popt"][i]
+                ax[1].semilogy(x, gaussian(x, *tt_popt))
+                ax[1].text(0, 3000, f"TT: {round(tt_popt[0], 3)} ns")
+                ax[1].text(0, 1000, f"TTS: {round(tt_popt[1], 3)} ns")
+            if "pre_pulse_prob" in self.results:
+                pre_pulse_prob = self.results["pre_pulse_prob"][i]
+                ax[1].text(70, 3000, f"pre: {round(pre_pulse_prob, 3)}")
+                ax[1].axvline(
+                    self.results["pre_max_time"][i], color="black", lw=1
+                )
+            if "delayed_pulse_prob" in self.results:
+                delayed_pulse_prob = self.results["delayed_pulse_prob"][i]
+                ax[1].text(70, 1000, f"delayed: {round(delayed_pulse_prob, 3)}")
+                ax[1].axvline(
+                    self.results["delayed_min_time"][i], color="black", lw=1
+                )
+            if "pre_pulse_prob_charge" in self.results:
+                x, y = self.results["precharge_charge_distribution"][i]
+                x_pre, y_pre = self.results[
+                    "precharge_pre_charge_distribution"
+                ][i]
+                popt = self.results["precharge_popt"][i]
+                popt_pre = self.results["precharge_popt_pre"][i]
+                n_sigma = self.results["precharges_n_sigma"][i]
+                ax[2].semilogy(x, y)
+                ax[2].plot(x, gaussian(x, *popt))
+                ax[2].set_ylim(0.1, 1e5)
+                ax[2].axvline(
+                    popt[0] + popt[1] * n_sigma,
+                    color="black",
+                    label=f"mean(ped) + {n_sigma} * sigma(ped)",
+                    lw=1,
+                )
+                ax[2].set_xlabel("charge [A.U.]")
+                ax[2].set_ylabel("counts")
+                ax[2].legend()
+
+                ax[3].semilogy(x_pre, y_pre)
+                ax[3].plot(x_pre, gaussian(x_pre, *popt_pre))
+                ax[3].set_ylim(0.1, 1e5)
+                ax[3].axvline(
+                    popt_pre[0] + popt_pre[1] * n_sigma,
+                    color="black",
+                    label=f"mean(ped) + {n_sigma} * sigma(ped)",
+                    lw=1,
+                )
+                ax[3].set_xlabel("charge [A.U.]")
+                ax[3].set_ylabel("counts")
+                ax[3].text(
+                    1000,
+                    1000,
+                    f"pre_charge: {round(self.results['pre_pulse_prob_charge'][i], 3)}",
+                )
+                ax[3].legend()
+
+            fig.savefig(
+                f"{self.file_path}/{self.results['pmt_id'][i]}_{self.results['nominal_gain'][i]}.png",
+                bbox_inches="tight",
+            )
