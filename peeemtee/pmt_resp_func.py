@@ -303,8 +303,10 @@ class ChargeHistFitter(object):
             number of gaussians to be fitted
         errordef: int
             parses "errordef" from iminuit
-        mod: bool
-            if True: use modified pmt response function (pmt_resp_func_mod)
+        mod: string
+            if False: no modification
+            "uap": fits an additional underamplified pulse gaussian
+            "exp": fits additional exponential tail 
         print_level: int, default: 1
             0: quiet, 1: print fit details
         """
