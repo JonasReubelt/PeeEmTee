@@ -226,7 +226,9 @@ class ChargeHistFitter(object):
         """
 
         if self.fixed_ped_spe:
-            popt, pcov = fit_gaussian(x, y)
+            popt, pcov = fit_gaussian(
+                x, y, errordef=errordef, print_level=print_level
+            )
             self.popt_gauss = popt
             self.nphe = popt["mean"] / self.spe_charge
             if self.nphe < 0:
@@ -306,7 +308,7 @@ class ChargeHistFitter(object):
         mod: string
             if False: no modification
             "uap": fits an additional underamplified pulse gaussian
-            "exp": fits additional exponential tail 
+            "exp": fits additional exponential tail
         print_level: int, default: 1
             0: quiet, 1: print fit details
         """
