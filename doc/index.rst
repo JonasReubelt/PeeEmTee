@@ -13,7 +13,7 @@
     contribute
     changelog
 
-    Code Coverage <https://examples.pages.km3net.de/python_project/coverage>
-    Source (Git) <https://git.km3net.de/examples/python_project>
+    Code Coverage <https://git.km3net.de/jreubelt/peeemtee/badges/master/coverage.svg>
+    Source (Git) <https://git.km3net.de/jreubelt/peeemtee>
 
 * :ref:`genindex`
