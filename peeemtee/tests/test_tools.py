@@ -1,10 +1,6 @@
 import numpy as np
 from unittest import TestCase
-from peeemtee.tools import (
-    calculate_charges,
-    calculate_histogram_data,
-    peak_finder,
-)
+from peeemtee.tools import calculate_charges, bin_data, peak_finder
 
 
 class TestTools(TestCase):
@@ -20,9 +16,9 @@ class TestTools(TestCase):
             list(calculate_charges(data, 0, 2, 2, 4)), [99, 396, 56]
         )
 
-    def test_calculate_histogram_data(self):
+    def test_bin_data(self):
         data = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        histogram_data = calculate_histogram_data(data, bins=5)
+        histogram_data = bin_data(data, bins=5)
         x_result = [
             1.8,
             3.4000000000000004,

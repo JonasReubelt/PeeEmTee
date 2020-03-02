@@ -94,7 +94,7 @@ def calculate_histogram_data(*args, **kwargs):
     return bin_data(*args, **kwargs)
 
 
-def bin_data(data, bins=10, range=None, normed=False):
+def bin_data(data, bins=10, range=None, density=False):
     """
     Calculates values and bin centres of a histogram of a set of data
 
@@ -117,7 +117,7 @@ def bin_data(data, bins=10, range=None, normed=False):
         values of the histogram
 
     """
-    y, x = np.histogram(data, bins=bins, range=range, normed=normed)
+    y, x = np.histogram(data, bins=bins, range=range, density=density)
     x = x[:-1]
     x = x + (x[1] - x[0]) / 2
     return x, y
