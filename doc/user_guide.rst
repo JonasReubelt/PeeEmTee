@@ -1,4 +1,4 @@
-User GUide
+User Guide
 ==========
 
-Install ``foo`` and have fun!
+Install ``PeeEmTee`` and have fun!
