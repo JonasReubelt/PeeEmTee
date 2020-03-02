@@ -8,7 +8,7 @@ class WavesetReader:
 
     @property
     def wavesets(self):
-        return [int(key) for key in self.file.keys()]
+        return [float(key) for key in self.file.keys()]
 
     def __getitem__(self, key):
         raw_waveforms = self.file[f"{key}/waveforms"][:]
