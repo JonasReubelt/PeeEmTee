@@ -4,3 +4,5 @@ dist
 *.pyc
 */version.txt
 doc/_build
+.pytest_cache/v/cache/nodeids
+reports/junit.xml
