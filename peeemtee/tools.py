@@ -84,7 +84,9 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
         1D array with transit times matching axis 0 of the signals array
 
     """
-    zeroed_signals = signals - np.mean(signals[:, baseline_min:baseline_max])
+    zeroed_signals = (
+        signals.T - np.mean(signals[:, baseline_min:baseline_max], axis=1)
+    ).T
     transit_times = np.argmax(zeroed_signals < threshold, axis=1)
     return transit_times[transit_times != 0]
 
