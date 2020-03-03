@@ -9,6 +9,7 @@ from peeemtee.tools import (
     calculate_transit_times,
     find_nominal_hv,
     calculate_rise_times,
+    calculate_mean_signal,
 )
 
 
@@ -98,3 +99,40 @@ class TestTools(TestCase):
         )
         rise_times = calculate_rise_times(waveforms, (0.1, 0.9))
         self.assertListEqual(list(rise_times), [2, 2, 1])
+
+    def test_calculate_mean_signal(self):
+        signals = np.array(
+            [
+                [0, 0.1, 1.2, -1.04, -5.213, -11.1, -15.43, -8.435, -1.1, -0],
+                [0, 0.5, -1.8, -2.04, -15.456, -13.4, -10.56, -6.355, -1.0, -0],
+                [
+                    0,
+                    0.2,
+                    0.67,
+                    -3.67,
+                    -9.893,
+                    -14.65,
+                    -29.783,
+                    -6.6587,
+                    -1.5,
+                    -0,
+                ],
+            ]
+        )
+        mean_signal = np.array(
+            [
+                0.1,
+                0.62333333,
+                -1.40333333,
+                -5.63533333,
+                -9.26333333,
+                -20.223,
+                -9.4979,
+                -4.38666667,
+                -2.11833333,
+                -0.33333333,
+            ]
+        )
+        np.testing.assert_array_almost_equal(
+            calculate_mean_signal(signals), mean_signal
+        )

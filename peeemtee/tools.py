@@ -157,7 +157,7 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     return x.flatten(), y.flatten(), z.flatten()
 
 
-def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
+def calculate_mean_signal(signals):
     """
     Calculates mean signals from several PMT signals
 
@@ -168,11 +168,6 @@ def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
         [[signal1],
         [signal2],
         ...]
-    use_for_shift: string
-        "min" to use minimum of signal or "fit" to use mean of gaussian fit
-    p0: list
-        start parameters for gaussian fit
-
     Returns
     -------
     mean_signal: (np.array, np.array)
@@ -182,19 +177,7 @@ def calculate_mean_signal(signals, use_for_shift="min", p0=None, print_level=1):
     nx = signals.shape[1]
     xs = np.arange(nx)
     for signal in signals:
-        if use_for_shift == "fit":
-            try:
-                popt, _ = curve_fit(gaussian, xs, signal, p0=p0)
-                shift = int(round(popt[0]))
-            except RuntimeError:
-                if print_level > 0:
-                    print("bad fit!")
-        elif use_for_shift == "min":
-            shift = np.argmin(signal)
-        else:
-            print(f'Unknown option for use_for_shift: "{use_for_shift}"')
-            print('options are: "min" or "fit"')
-            return None
+        shift = np.argmin(signal)
         rolled_signals.append(np.roll(signal, -shift + int(nx / 2)))
     mean_signal = np.mean(rolled_signals, axis=0)
     return mean_signal
