@@ -91,11 +91,6 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
     return transit_times[transit_times != 0]
 
 
-def calculate_histogram_data(*args, **kwargs):
-    print("Deprecated! Use bin_data() instead")
-    return bin_data(*args, **kwargs)
-
-
 def bin_data(data, bins=10, range=None, density=False):
     """
     Calculates values and bin centres of a histogram of a set of data
@@ -309,54 +304,3 @@ def calculate_rise_times(waveforms, relative_thresholds=(0.1, 0.9)):
             second_time = 0
         rise_times.append(second_time - first_time)
     return np.array(rise_times)
-
-
-def read_waveforms_from_hdf5(filename, voltage=""):
-    """
-    Reads waveforms form hdf5 file
-
-    Parameters
-    ----------
-    filename: string
-    voltage: string
-        waveforms for which measured voltage should be read
-
-    Returns
-    -------
-    waveforms: np.array
-        2D numpy array with one waveform (y-values) in each row
-        [[waveform1],
-        [waveform2],
-        ...]
-    h_int: float
-        horizontal interval between sample points
-    """
-    f = h5py.File(filename, "r")
-    v_gain = f[voltage]["waveform_info"]["v_gain"][()]
-    h_int = f[voltage]["waveform_info"]["h_int"][()]
-    waveforms = f[voltage]["waveforms"][:] * v_gain
-    f.close()
-    return waveforms, h_int
-
-
-def write_waveforms_to_hdf5(raw_waveforms, v_gain, h_int, filename, voltage=""):
-    """
-    Writes waveforms to hdf5 file
-
-    Parameters
-    ----------
-    raw_waveforms: np.array(int)
-        2D numpy array with one waveform (y-values) in each row
-        [[waveform1],
-        [waveform2],
-        ...]
-    v_gain: float
-        converts the integer sample points in waveforms_raw into voltages [V]
-    h_int: float
-        horizontal interval between sample points
-    filename: string
-    voltage: string
-        waveforms for which measured voltage should be written
-
-    """
-    print("not implemented yet!")
