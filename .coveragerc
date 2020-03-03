@@ -6,6 +6,7 @@ include =
     peeemtee/*
 omit =
     peeemtee/tests/*
+    peeemtee/pipe_modules.py
 exclude_lines =
     pragma: no cover
     raise AssertionError
