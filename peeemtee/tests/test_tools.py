@@ -8,6 +8,7 @@ from peeemtee.tools import (
     gaussian_with_offset,
     calculate_transit_times,
     find_nominal_hv,
+    calculate_rise_times,
 )
 
 
@@ -86,3 +87,14 @@ class TestTools(TestCase):
             )
             == 1100
         )
+
+    def test_calculate_rise_times(self):
+        waveforms = np.array(
+            [
+                [0, 0, 0, -1, -2, -3, -2, -1, 0, 0, 0],
+                [-0, -1, 2, -25, -35, -50, -30, -15, 0, -1, 3],
+                [1, 0, 1, 0, -5, -15, -10, 5, 12, 15, 14],
+            ]
+        )
+        rise_times = calculate_rise_times(waveforms, (0.1, 0.9))
+        self.assertListEqual(list(rise_times), [2, 2, 1])
