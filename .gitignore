@@ -2,7 +2,8 @@ __pycache__
 dist
 *.egg-info
 *.pyc
-*/version.txt
+*/version.py
+venv
 doc/_build
 .pytest_cache/v/cache/nodeids
 reports/junit.xml

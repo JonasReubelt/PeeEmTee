@@ -12,18 +12,17 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
-import os
 from datetime import date
 import sphinx_rtd_theme
 from pkg_resources import get_distribution
 
-import peeemtee  # noqa
+version = get_distribution("peeemtee").version
+short_version = ".".join(version.split(".")[:2])
+project = "peeemtee {}".format(short_version)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ------------------------------------------------
 
@@ -72,12 +71,9 @@ master_doc = 'index'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 # The full version, including alpha/beta/rc tags.
-release = get_distribution('peeemtee').version
 # The short X.Y version.
-version = '.'.join(release.split('.')[:2])
 
 # General information about the project.
-project = "PeeEmTee {}".format(peeemtee.__version__)
 
 copyright = u'{0}, Jonas Reubelt'.format(date.today().year)
 
@@ -127,7 +123,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = "PeeEmTee {}".format(peeemtee.__version__)
+html_title = "PeeEmTee {}".format(version)
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 # html_short_title = 'Home'

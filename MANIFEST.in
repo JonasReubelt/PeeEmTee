@@ -5,7 +5,6 @@ recursive-include peeemtee/data *
 include README
 include LICENSE
 include requirements.txt
-include */version.txt
 
 recursive-include doc *
 recursive-exclude doc *.pyc
