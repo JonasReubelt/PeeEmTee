@@ -7,6 +7,7 @@ from peeemtee.tools import (
     gaussian,
     gaussian_with_offset,
     calculate_transit_times,
+    find_nominal_hv,
 )
 
 
@@ -77,3 +78,11 @@ class TestTools(TestCase):
         peak_positions = peak_finder(test_waveforms, -1)
         result = [[4.0, 11.5], [2.5], [15.0], [0.0]]
         self.assertListEqual(peak_positions, result)
+
+    def test_find_nominal_hv(self):
+        assert (
+            find_nominal_hv(
+                "peeemtee/tests/samples/waveform_data_dummy.h5", 5e6
+            )
+            == 1100
+        )
