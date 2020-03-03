@@ -17,3 +17,26 @@ class TestTools(TestCase):
             / 195
             < 1.5
         )
+        fitter = ChargeHistFitter()
+        fitter.pre_fit(x, y, print_level=0)
+        fitter.fit_pmt_resp_func(x, y, print_level=0, fixed_parameters=[])
+
+        assert (
+            np.sum((y - fitter.opt_prf_values) ** 2 / fitter.opt_prf_values)
+            / 195
+            < 1.5
+        )
+
+    def test_fit_pmt_resp_func_uap(self):
+        x, y = np.loadtxt(
+            "./peeemtee/tests/samples/charge_distribution.txt", unpack=True
+        )
+        fitter = ChargeHistFitter()
+        fitter.pre_fit(x, y, print_level=0)
+        fitter.fit_pmt_resp_func(x, y, print_level=0, mod="uap")
+
+        assert (
+            np.sum((y - fitter.opt_prf_values) ** 2 / fitter.opt_prf_values)
+            / 195
+            < 1.5
+        )
