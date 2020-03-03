@@ -129,51 +129,6 @@ class ChargeHistFitter(object):
         func += self.gaussian(x, uap_mean, uap_sigma, uap_A)
         return func
 
-    def step(self, x):
-        return 1.0 * (x > 0)
-
-    def exp_noise(self, x, w, s0, Q0, a, poissonmean, spe_peak):
-        return np.exp(-poissonmean) * (
-            (1 - w)
-            * np.exp(-((x - Q0) ** 2.0) / (2.0 * (s0 ** 2.0)))
-            / (s0 * np.sqrt(2.0 * np.pi))
-            + w * self.step(x - Q0) * a * np.exp(-a * (x - Q0))
-        )
-
-    def pmt_resp_func_exp(
-        self, x, nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries, w, a
-    ):
-        func = 0.0
-        for i in range(self.n_gaussians):
-            pois = poisson.pmf(int(i), nphe)
-            sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
-            arg = (x - (i * spe_charge + ped_mean)) / sigma
-            func += pois / sigma * np.exp(-0.5 * arg ** 2)
-        func = entries * func / np.sqrt(2 * np.pi)
-        func += self.exp_noise(
-            x, w, ped_sigma, ped_mean, a, nphe, spe_charge - ped_mean
-        )
-        return func
-
-    def pmt_resp_func_sexp(
-        self, x, nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries, a, b
-    ):
-        func = 0.0
-        for i in range(self.n_gaussians):
-            pois = poisson.pmf(int(i), nphe)
-            sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
-            arg = (x - (i * spe_charge + ped_mean)) / sigma
-            func += pois / sigma * np.exp(-0.5 * arg ** 2)
-        func = entries * func / np.sqrt(2 * np.pi)
-        func += (
-            a
-            * np.exp(b * x)
-            * (x > 0)
-            * (x < (spe_charge - ped_mean))
-            * (-1 / (spe_charge) * (x - ped_mean) + 1)
-        )
-        return func
-
     def fix_ped_spe(self, ped_mean, ped_sigma, spe_charge, spe_sigma):
         """
         Fixes ped and spe in fit_pmt_resp_func and sets fixed parameters
@@ -308,7 +263,6 @@ class ChargeHistFitter(object):
         mod: string
             if False: no modification
             "uap": fits an additional underamplified pulse gaussian
-            "exp": fits additional exponential tail
         print_level: int, default: 1
             0: quiet, 1: print fit details
         """
@@ -316,12 +270,10 @@ class ChargeHistFitter(object):
             self.n_gaussians = n_gaussians
         if not mod:
             func = self.pmt_resp_func
-        if mod == "exp":
-            func = self.pmt_resp_func_exp
+
         if mod == "uap":
             func = self.pmt_resp_func_uap
-        if mod == "sexp":
-            func = self.pmt_resp_func_sexp
+
         self.used_fit_function = func
 
         def make_quality_function(x, y, mod):
@@ -341,70 +293,6 @@ class ChargeHistFitter(object):
                                     spe_charge,
                                     spe_sigma,
                                     entries,
-                                )
-                                - y
-                            )
-                        )
-                        ** 2
-                    )
-
-            if mod == "exp":
-
-                def quality_function(
-                    nphe,
-                    spe_charge,
-                    ped_mean,
-                    ped_sigma,
-                    spe_sigma,
-                    entries,
-                    w,
-                    a,
-                ):
-                    return np.sum(
-                        (
-                            (
-                                func(
-                                    x,
-                                    nphe,
-                                    ped_mean,
-                                    ped_sigma,
-                                    spe_charge,
-                                    spe_sigma,
-                                    entries,
-                                    w,
-                                    a,
-                                )
-                                - y
-                            )
-                        )
-                        ** 2
-                    )
-
-            if mod == "sexp":
-
-                def quality_function(
-                    nphe,
-                    spe_charge,
-                    ped_mean,
-                    ped_sigma,
-                    spe_sigma,
-                    entries,
-                    a,
-                    b,
-                ):
-                    return np.sum(
-                        (
-                            (
-                                func(
-                                    x,
-                                    nphe,
-                                    ped_mean,
-                                    ped_sigma,
-                                    spe_charge,
-                                    spe_sigma,
-                                    entries,
-                                    a,
-                                    b,
                                 )
                                 - y
                             )
@@ -479,13 +367,7 @@ class ChargeHistFitter(object):
             kwargs["fix_spe_sigma"] = True
             kwargs["fix_ped_mean"] = True
             kwargs["fix_ped_sigma"] = True
-        if mod == "exp":
-            kwargs["w"] = 0.1
-            kwargs["a"] = 0.1
-        if mod == "sexp":
-            kwargs["a"] = 100
-            kwargs["b"] = -1
-            kwargs["limit_b"] = (-np.inf, 0)
+
         if mod == "uap":
             kwargs["uap_mean"] = self.popt_spe["mean"] / 5
             kwargs["uap_sigma"] = self.popt_spe["sigma"] / 5
