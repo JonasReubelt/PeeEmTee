@@ -20,6 +20,12 @@ test-py3.7:
     script:
         - make test
 
+test-py3.8:
+    image: docker.km3net.de/base/python:3.8
+    stage: test
+    script:
+        - make test
+
 code-style:
     image: docker.km3net.de/base/python:3.7
     stage: test
