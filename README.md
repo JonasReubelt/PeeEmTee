@@ -1,8 +1,8 @@
 The km3io Python package
 ========================
 
-.. image:: https://git.km3net.de/jreubelt/peeemtee/badges/master/pipeline.svg
-    :target: https://git.km3net.de/jreubelt/peeemtee/badges/master/pipelines
+.. image:: https://git.km3net.de/jreubelt/peeemtee/peeemtee/badges/master/pipeline.svg
+    :target: https://git.km3net.de/jreubelt/peeemtee/peeemtee/badges/master/pipelines
 
 .. image:: https://git.km3net.de/km3py/km3io/badges/master/coverage.svg
     :target: https://km3py.pages.km3net.de/km3io/coverage
