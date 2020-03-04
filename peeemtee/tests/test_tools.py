@@ -10,6 +10,7 @@ from peeemtee.tools import (
     find_nominal_hv,
     calculate_rise_times,
     calculate_mean_signal,
+    calculate_persist_data,
 )
 
 
@@ -135,4 +136,19 @@ class TestTools(TestCase):
         )
         np.testing.assert_array_almost_equal(
             calculate_mean_signal(signals), mean_signal
+        )
+
+    def test_calculate_persist_data(self):
+        data = np.array([[-1, 0, 1], [1, 0, -1], [0, 0, 0]])
+        x, y, z = calculate_persist_data(
+            data, bins=(3, 3), range=((-0.5, 2.5), (-1.5, 1.5))
+        )
+        np.testing.assert_array_equal(
+            x, np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0])
+        )
+        np.testing.assert_array_equal(
+            y, np.array([-1.0, 0.0, 1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 1.0])
+        )
+        np.testing.assert_array_equal(
+            z, np.array([1.0, 1.0, 1.0, 0.0, 3.0, 0.0, 1.0, 1.0, 1.0])
         )
