@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import numpy as np
 from scipy.optimize import curve_fit
 from numba import jit
@@ -184,7 +185,7 @@ def calculate_mean_signal(signals):
 
 
 @jit(nopython=True)
-def peak_finder(waveforms, threshold):
+def peak_finder(waveforms, threshold):  # pragma: no cover
     """
     Finds peaks in waveforms
 
