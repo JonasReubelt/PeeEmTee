@@ -159,6 +159,7 @@ class ChargeHistFitter(object):
         n_sigma=3,
         errordef=10,
         print_level=1,
+        calculate_hesse=False,
     ):
         """
         Performs single gaussian fits to pedestal and single p.e. peaks
@@ -182,7 +183,11 @@ class ChargeHistFitter(object):
 
         if self.fixed_ped_spe:
             popt, pcov = fit_gaussian(
-                x, y, errordef=errordef, print_level=print_level
+                x,
+                y,
+                errordef=errordef,
+                print_level=print_level,
+                calculate_hesse=calculate_hesse,
             )
             self.popt_gauss = popt
             self.nphe = popt["mean"] / self.spe_charge
@@ -202,7 +207,10 @@ class ChargeHistFitter(object):
                 x_ped, y_ped = x[cond], y[cond]
 
             popt_ped, pcov_ped = fit_gaussian(
-                x_ped, y_ped, print_level=print_level
+                x_ped,
+                y_ped,
+                print_level=print_level,
+                calculate_hesse=calculate_hesse,
             )
 
             if valley is None:
@@ -220,7 +228,11 @@ class ChargeHistFitter(object):
             x_spe, y_spe = x[cond], y[cond]
 
             popt_spe, pcov_spe = fit_gaussian(
-                x_spe, y_spe, errordef=errordef, print_level=print_level
+                x_spe,
+                y_spe,
+                errordef=errordef,
+                print_level=print_level,
+                calculate_hesse=calculate_hesse,
             )
 
             self.popt_ped = popt_ped
