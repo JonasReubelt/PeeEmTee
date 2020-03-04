@@ -9,7 +9,7 @@ class TestTools(TestCase):
             "./peeemtee/tests/samples/charge_distribution.txt", unpack=True
         )
         fitter = ChargeHistFitter()
-        fitter.pre_fit(x, y, print_level=0, calculate_hesse=True)
+        fitter.pre_fit(x, y, print_level=0)
         fitter.fit_pmt_resp_func(x, y, print_level=0)
 
         assert (
@@ -18,7 +18,7 @@ class TestTools(TestCase):
             < 1.5
         )
         fitter = ChargeHistFitter()
-        fitter.pre_fit(x, y, print_level=0)
+        fitter.pre_fit(x, y, print_level=0, valley=0.1, calculate_hesse=True)
         fitter.fit_pmt_resp_func(x, y, print_level=0, fixed_parameters=[])
 
         assert (
