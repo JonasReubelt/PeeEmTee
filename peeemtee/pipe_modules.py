@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import thepipe as tp
 import h5py
+import datetime
 from .tools import gaussian, calculate_charges, bin_data, calculate_rise_times
 from .pmt_resp_func import ChargeHistFitter
 from .constants import hama_phd_qe
@@ -84,7 +85,7 @@ def read_spectral_scan(filename):
     return wavelengths, currents
 
 
-def read_time(filename):
+def read_datetime(filename):
     """Reads time of a spectral PMT or PHD scan
 
     Parameters
@@ -96,24 +97,24 @@ def read_time(filename):
     time: str
     """
     f = codecs.open(filename, "r", encoding="utf-8", errors="ignore")
-    time = f.read().split("\n")[2].split(" ")[2]
-    return time
+    datetime_string = f.read().split("\n")[2]
+    f.close()
+    return datetime_string.split(" ")[1] + ";" + datetime_string.split(" ")[2]
 
 
-def get_sec(time_str):
+def convert_to_secs(date_time):
     """Converts time string to seconds
 
     Parameters
     ----------
-    time_str: str
+    date_time: str
 
     Returns
     -------
     seconds: int
     """
-    h, m, s = time_str.split(":")
-    seconds = int(h) * 3600 + int(m) * 60 + int(s)
-    return seconds
+    t = datetime.datetime.strptime(date_time, "%Y-%m-%d;%H:%M:%S")
+    return t.timestamp()
 
 
 def choose_ref(phd_filenames, pmt_filename):
@@ -129,9 +130,9 @@ def choose_ref(phd_filenames, pmt_filename):
     phd_filename: str
     """
     diffs = []
-    pmt_time = get_sec(read_time(pmt_filename))
+    pmt_time = convert_to_secs(read_datetime(pmt_filename))
     for filename in phd_filenames:
-        phd_time = get_sec(read_time(filename))
+        phd_time = convert_to_secs(read_datetime(filename))
         diffs.append(abs(pmt_time - phd_time))
     phd_filename = phd_filenames[np.argmin(diffs)]
     return phd_filename
