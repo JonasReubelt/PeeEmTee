@@ -26,7 +26,9 @@ def gaussian_with_offset(x, mean, sigma, A, offset):
     )
 
 
-def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
+def calculate_charges(
+    waveforms, ped_min, ped_max, sig_min, sig_max, method="sum"
+):
     """
     Calculates the charges of an array of waveforms
 
@@ -45,6 +47,10 @@ def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
         minimum of window for signal integration
     sig_max: int
         maximum of window for signal integration
+    method: string
+        method used for "integration"
+        "sum" -> np.sum
+        "trapz" -> np.trapz
 
     Returns
     -------
@@ -53,8 +59,15 @@ def calculate_charges(waveforms, ped_min, ped_max, sig_min, sig_max):
 
     """
     sig_ped_ratio = (sig_max - sig_min) / (ped_max - ped_min)
-    pedestals = np.sum(waveforms[:, ped_min:ped_max], axis=1)
-    signals = np.sum(waveforms[:, sig_min:sig_max], axis=1)
+    if method == "sum":
+        func = np.sum
+    elif method == "trapz":
+        func = np.trapz
+    else:
+        print("unknown method. try sum or trapz!")
+        return 0
+    pedestals = func(waveforms[:, ped_min:ped_max], axis=1)
+    signals = func(waveforms[:, sig_min:sig_max], axis=1)
     charges = -(signals - pedestals * sig_ped_ratio)
 
     return charges
