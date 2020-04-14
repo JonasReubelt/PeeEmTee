@@ -94,6 +94,33 @@ class ChargeHistFitter(object):
             * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
         )
 
+    def _calculate_single_gaussian_shape(self, n):
+        popt = self.popt_prf
+        A = poisson.pmf(int(n), popt["nphe"]) * popt["entries"]
+        sigma = np.sqrt(n * popt["spe_sigma"] ** 2 + popt["ped_sigma"] ** 2)
+        mean = n * popt["spe_charge"] + popt["ped_mean"]
+        return mean, sigma, A
+
+    def single_gaussian_values(self, x, n):
+        """
+        Calculates single gaussian y-values corresponding to the input x-values
+
+        Parameters
+        ----------
+        x: np.array
+            1D array of x-values the gaussian y-values should be calculated for
+        n: int
+            multiplicity of the gaussian the y-values should be calculated for
+
+        Returns
+        -------
+        y: np.array
+            y-values of the gaussian
+
+        """
+        mean, sigma, A = self._calculate_single_gaussian_shape(n)
+        return self.gaussian(x, mean, sigma, A)
+
     def pmt_resp_func(
         self, x, nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries
     ):
