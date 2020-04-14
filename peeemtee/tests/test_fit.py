@@ -60,3 +60,19 @@ class TestTools(TestCase):
             / 195
             < 20
         )
+
+    def test_single_gaussian_values(self):
+        x, y = np.loadtxt(
+            "./peeemtee/tests/samples/single_gaussian_values.txt", unpack=True
+        )
+        popt = {
+            "entries": 254.67033173856782,
+            "nphe": 0.09948503314900548,
+            "ped_mean": -0.0010005760657697902,
+            "ped_sigma": 0.012413241559483338,
+            "spe_charge": 0.2016217091151677,
+            "spe_sigma": 0.10110260065504383,
+        }
+        fitter = ChargeHistFitter()
+        fitter.popt_prf = popt
+        np.testing.assert_array_equal(y, fitter.single_gaussian_values(x, 1))
