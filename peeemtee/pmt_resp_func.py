@@ -321,24 +321,17 @@ class ChargeHistFitter(object):
                 def quality_function(
                     nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries
                 ):
-                    return np.sum(
-                        (
-                            (
-                                func(
-                                    x,
-                                    nphe,
-                                    ped_mean,
-                                    ped_sigma,
-                                    spe_charge,
-                                    spe_sigma,
-                                    entries,
-                                )
-                                - y
-                            )
-                        )
-                        ** 2
-                        / np.where(y == 0, 1, y)
+                    model = func(
+                        x,
+                        nphe,
+                        ped_mean,
+                        ped_sigma,
+                        spe_charge,
+                        spe_sigma,
+                        entries,
                     )
+                    mask = y != 0
+                    return np.sum(((model[mask] - y[mask])) ** 2 / y[mask])
 
             if mod == "uap":
 
