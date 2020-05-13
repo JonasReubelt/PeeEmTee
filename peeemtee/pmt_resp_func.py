@@ -337,6 +337,7 @@ class ChargeHistFitter(object):
                             )
                         )
                         ** 2
+                        / y
                     )
 
             if mod == "uap":
