@@ -337,7 +337,7 @@ class ChargeHistFitter(object):
                             )
                         )
                         ** 2
-                        / y
+                        / np.where(y == 0, 1, y)
                     )
 
             if mod == "uap":
