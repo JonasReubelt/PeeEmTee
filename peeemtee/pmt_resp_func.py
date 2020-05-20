@@ -346,26 +346,20 @@ class ChargeHistFitter(object):
                     uap_sigma,
                     uap_A,
                 ):
-                    return np.sum(
-                        (
-                            (
-                                func(
-                                    x,
-                                    nphe,
-                                    ped_mean,
-                                    ped_sigma,
-                                    spe_charge,
-                                    spe_sigma,
-                                    entries,
-                                    uap_mean,
-                                    uap_sigma,
-                                    uap_A,
-                                )
-                                - y
-                            )
-                        )
-                        ** 2
+                    model = func(
+                        x,
+                        nphe,
+                        ped_mean,
+                        ped_sigma,
+                        spe_charge,
+                        spe_sigma,
+                        entries,
+                        uap_mean,
+                        uap_sigma,
+                        uap_A,
                     )
+                    mask = y != 0
+                    return np.sum(((model[mask] - y[mask])) ** 2 / y[mask])
 
             return quality_function
 
