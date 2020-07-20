@@ -637,3 +637,4 @@ class ResultPlotter(tp.Module):
                 f"{self.file_path}/{self.results['pmt_id'][i]}_{self.results['nominal_gain'][i]}.png",
                 bbox_inches="tight",
             )
+            plt.close(fig)
