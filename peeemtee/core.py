@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import numpy as np
 import h5py
 
 
@@ -29,3 +30,9 @@ class Waveset:
         if self._waveforms is None:
             self._waveforms = self.raw_waveforms * self.v_gain
         return self._waveforms
+
+    def zeroed_waveforms(self, baseline_min, baseline_max):
+        return (
+            self.waveforms.T
+            - np.mean(self.waveforms[:, baseline_min:baseline_max], axis=1)
+        ).T
