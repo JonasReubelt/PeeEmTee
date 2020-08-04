@@ -24,7 +24,7 @@ class TestTools(TestCase):
         assert (
             np.sum((y - fitter.opt_prf_values) ** 2 / fitter.opt_prf_values)
             / 195
-            < 1.5
+            < 2
         )
 
     def test_fit_pmt_resp_func_uap(self):
@@ -38,7 +38,7 @@ class TestTools(TestCase):
         assert (
             np.sum((y - fitter.opt_prf_values) ** 2 / fitter.opt_prf_values)
             / 195
-            < 1.5
+            < 2
         )
 
     def test_fit_pmt_resp_func_fixed_ped_spe(self):
