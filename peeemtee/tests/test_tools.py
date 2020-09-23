@@ -357,7 +357,7 @@ class TestTools(TestCase):
         assert datetime == "2020-02-12;16:54:20"
 
     def test_convert_to_secs(self):
-        assert convert_to_secs("2020-02-12;16:54:20") == 1581522860.0
+        assert convert_to_secs("2020-02-12;16:54:20") == 1581526460.0
 
     def test_choose_ref(self):
         pmt_filename = "peeemtee/tests/samples/BA0796.txt"
