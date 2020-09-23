@@ -5,6 +5,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 from numba import jit
 import h5py
+import codecs
+import datetime
 
 
 def gaussian(x, mean, sigma, A):

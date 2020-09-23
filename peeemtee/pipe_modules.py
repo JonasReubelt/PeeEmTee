@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import thepipe as tp
 import h5py
-import datetime
 from .tools import (
     gaussian,
     calculate_charges,
