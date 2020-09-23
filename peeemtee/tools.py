@@ -13,22 +13,27 @@ TIMEZONE = pytz.reference.LocalTimezone()
 
 
 def gaussian(x, mean, sigma, A):
-    return (A / np.sqrt(2 * np.pi) / sigma * np.exp(-0.5 *
-                                                    (x - mean)**2 / sigma**2))
+    return (
+        A
+        / np.sqrt(2 * np.pi)
+        / sigma
+        * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
+    )
 
 
 def gaussian_with_offset(x, mean, sigma, A, offset):
-    return (A / np.sqrt(2 * np.pi) / sigma * np.exp(-0.5 *
-                                                    (x - mean)**2 / sigma**2) +
-            offset)
+    return (
+        A
+        / np.sqrt(2 * np.pi)
+        / sigma
+        * np.exp(-0.5 * (x - mean) ** 2 / sigma ** 2)
+        + offset
+    )
 
 
-def calculate_charges(waveforms,
-                      ped_min,
-                      ped_max,
-                      sig_min,
-                      sig_max,
-                      method="sum"):
+def calculate_charges(
+    waveforms, ped_min, ped_max, sig_min, sig_max, method="sum"
+):
     """
     Calculates the charges of an array of waveforms
 
@@ -98,8 +103,9 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
         1D array with transit times matching axis 0 of the signals array
 
     """
-    zeroed_signals = (signals.T -
-                      np.mean(signals[:, baseline_min:baseline_max], axis=1)).T
+    zeroed_signals = (
+        signals.T - np.mean(signals[:, baseline_min:baseline_max], axis=1)
+    ).T
     transit_times = np.argmax(zeroed_signals < threshold, axis=1)
     return transit_times[transit_times != 0]
 
@@ -160,10 +166,9 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
 
     """
     times = np.tile(np.arange(waveforms.shape[1]), (waveforms.shape[0], 1))
-    z, xs, ys = np.histogram2d(times.flatten(),
-                               waveforms.flatten(),
-                               bins=bins,
-                               range=range)
+    z, xs, ys = np.histogram2d(
+        times.flatten(), waveforms.flatten(), bins=bins, range=range
+    )
     xs = (xs + (xs[1] - xs[0]) / 2)[:-1]
     ys = (ys + (ys[1] - ys[0]) / 2)[:-1]
     x = np.array([[x] * bins[1] for x in xs])
@@ -350,7 +355,7 @@ def convert_to_secs(date_time):
 
     Returns
     -------
-    seconds: int
+    unix time in seconds: int
     """
     t = datetime.datetime.strptime(date_time, "%Y-%m-%d;%H:%M:%S")
     return t.timestamp() + TIMEZONE.utcoffset(t).seconds
