@@ -10,7 +10,16 @@ from collections import defaultdict
 import thepipe as tp
 import h5py
 import datetime
-from .tools import gaussian, calculate_charges, bin_data, calculate_rise_times
+from .tools import (
+    gaussian,
+    calculate_charges,
+    bin_data,
+    calculate_rise_times,
+    read_spectral_scan,
+    read_datetime,
+    convert_to_secs,
+    choose_ref,
+)
 from .pmt_resp_func import ChargeHistFitter
 from .constants import hama_phd_qe
 
@@ -62,80 +71,6 @@ class QECalibrator(tp.Module):
         blob["pmt_id"] = pmt_filename.split("/")[-1].split(".")[0]
         blob["global_qe_shift"] = self.global_qe_shift
         return blob
-
-
-def read_spectral_scan(filename):
-    """Reads wavelengths and currents from spectral PMT or PHD scan
-
-    Parameters
-    ----------
-    filename: str
-
-    Returns
-    -------
-    (wavelengths, currents): (np.array(float), np.array(float))
-    """
-    print(filename)
-    data = np.loadtxt(filename, unpack=True, encoding="latin1")
-    with codecs.open(filename, "r", encoding="utf-8", errors="ignore") as f:
-        dcs = f.read().split("\n")[-2].split("\t")
-    dc = (float(dcs[-2]) + float(dcs[-1])) / 2
-    wavelengths = data[0]
-    currents = data[1] - dc
-    return wavelengths, currents
-
-
-def read_datetime(filename):
-    """Reads time of a spectral PMT or PHD scan
-
-    Parameters
-    ----------
-    filename: str
-
-    Returns
-    -------
-    time: str
-    """
-    f = codecs.open(filename, "r", encoding="utf-8", errors="ignore")
-    datetime_string = f.read().split("\n")[2]
-    f.close()
-    return datetime_string.split(" ")[1] + ";" + datetime_string.split(" ")[2]
-
-
-def convert_to_secs(date_time):
-    """Converts time string to seconds
-
-    Parameters
-    ----------
-    date_time: str
-
-    Returns
-    -------
-    seconds: int
-    """
-    t = datetime.datetime.strptime(date_time, "%Y-%m-%d;%H:%M:%S")
-    return t.timestamp()
-
-
-def choose_ref(phd_filenames, pmt_filename):
-    """Chooses reference measurement closest (in time) to the actual measurement
-
-    Parameters
-    ----------
-    phd_filenames: list(str)
-    pmt_filename: str
-
-    Returns
-    -------
-    phd_filename: str
-    """
-    diffs = []
-    pmt_time = convert_to_secs(read_datetime(pmt_filename))
-    for filename in phd_filenames:
-        phd_time = convert_to_secs(read_datetime(filename))
-        diffs.append(abs(pmt_time - phd_time))
-    phd_filename = phd_filenames[np.argmin(diffs)]
-    return phd_filename
 
 
 class QEWriter(tp.Module):
