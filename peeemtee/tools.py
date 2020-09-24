@@ -319,13 +319,13 @@ def read_spectral_scan(filename):
     -------
     (wavelengths, currents): (np.array(float), np.array(float))
     """
-    print(filename)
     data = np.loadtxt(filename, unpack=True, encoding="latin1")
     with codecs.open(filename, "r", encoding="utf-8", errors="ignore") as f:
         dcs = f.read().split("\n")[-2].split("\t")
-    dc = (float(dcs[-2]) + float(dcs[-1])) / 2
     wavelengths = data[0]
-    currents = data[1] - dc
+    currents = data[1]
+    dc = np.linspace(float(dcs[-2]), float(dcs[-1]), len(currents))
+    currents = currents - dc
     return wavelengths, currents
 
 
@@ -380,3 +380,52 @@ def choose_ref(phd_filenames, pmt_filename):
         diffs.append(abs(pmt_time - phd_time))
     phd_filename = phd_filenames[np.argmin(diffs)]
     return phd_filename
+
+
+def remove_double_peaks(peaks, distance=20):
+    """Removes secondary peaks with a distance <= distance from the primary
+       peak from 2D array of peaks
+
+    Parameters
+    ----------
+    peaks: 2D array of peaks
+    distance: float
+
+    Returns
+    -------
+    new_peaks: 2D np.array
+    """
+    new_peaks = []
+    for peak in peaks:
+        mp = -(distance + 1)
+        new_peak = []
+        for p in peak:
+            if np.fabs(mp - p) >= distance:
+                new_peak.append(p)
+                mp = p
+        new_peaks.append(new_peak)
+    return np.array(new_peaks)
+
+
+def peaks_with_signal(peaks, signal_range):
+    """Returns peaks with at least one peak in signal_range
+
+    Parameters
+    ----------
+    peaks: 2D array of peaks
+    signal_range: tuple(float)
+        (min, max) of signal window
+
+    Returns
+    -------
+    peaks_with_signal: 2D np.array
+    """
+    peaks_with_signal = []
+    for peak in peaks:
+        got_signal = False
+        for p in peak:
+            if p > signal_range[0] and p < signal_range[1]:
+                got_signal = True
+        if got_signal:
+            peaks_with_signal.append(peak)
+    return peaks_with_signal
