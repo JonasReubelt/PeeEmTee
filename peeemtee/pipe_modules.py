@@ -18,9 +18,13 @@ from .tools import (
     read_datetime,
     convert_to_secs,
     choose_ref,
+    peak_finder,
+    remove_double_peaks,
+    peaks_with_signal,
 )
 from .pmt_resp_func import ChargeHistFitter
 from .constants import hama_phd_qe
+from .core import WavesetReader
 
 
 class FilePump(tp.Module):
@@ -572,3 +576,213 @@ class ResultPlotter(tp.Module):
                 bbox_inches="tight",
             )
             plt.close(fig)
+
+
+class AfterpulseFileReader(tp.Module):
+    """
+    pipe module that reads h5py afterpulse files and writes waveforms
+    and waveform info of reference and main measurement into the blob
+    """
+
+    def process(self, blob):
+        filename = blob["filename"]
+        blob["pmt_id"] = os.path.basename(filename).split("_")[-1].split(".")[0]
+        self.cprint(f"Reading file: {filename}")
+        reader = WavesetReader(filename)
+        for k in reader.wavesets:
+            if "ref" in k:
+                blob["waveforms_ref"] = reader[k].waveforms
+                blob["h_int_ref"] = reader[k].h_int
+            else:
+                blob["waveforms"] = reader[k].waveforms
+                blob["h_int"] = reader[k].h_int
+        return blob
+
+
+class AfterpulseNpheCalculator(tp.Module):
+    """
+    pipe module that calculates the mean number of photoelectrons of
+    the afterpulse data - used for correction of the afterpulse probability later
+
+    Parameters
+    ----------
+    ped_sig_range_ref: tuple(int)
+        pedestal and signal integration range for reference measurement (spe regime)
+    ap_integration_window_half_width: int
+        half width of pedestal and signal integration range of afterpulse data
+    n_gaussians: int
+        number of gaussians used for afterpulse charge spectrum fit
+    fit_mod_ref: str
+        fit mod used for PMT response fit to reference data
+    """
+
+    def configure(self):
+        self.ped_sig_range_ref = self.get(
+            "ped_sig_range", default=(0, 200, 200, 400)
+        )
+        self.ap_integration_window_half_width = self.get(
+            "ap_integration_window_half_width", default=25
+        )
+        self.n_gaussians = self.get("n_gaussians", default=25)
+        self.fit_mod_ref = self.get("fit_mod_ref", default=False)
+
+    def process(self, blob):
+        blob["fit_info"] = {}
+        charges_ref = calculate_charges(
+            blob["waveforms_ref"], *self.ped_sig_range_ref
+        )
+        x_ref, y_ref = bin_data(charges_ref, bins=200)
+        fitter_ref = ChargeHistFitter()
+        fitter_ref.pre_fit(x_ref, y_ref, print_level=0)
+        fitter_ref.fit_pmt_resp_func(
+            x_ref, y_ref, print_level=0, mod=self.fit_mod_ref
+        )
+        blob["fit_info"]["x_ref"] = x_ref
+        blob["fit_info"]["y_ref"] = y_ref
+        blob["fit_info"]["prf_values_ref"] = fitter_ref.opt_prf_values
+        blob["fit_info"]["ped_values_ref"] = fitter_ref.opt_ped_values
+        blob["fit_info"]["spe_values_ref"] = fitter_ref.opt_spe_values
+
+        time_bin_ratio = blob["h_int_ref"] / blob["h_int"]
+
+        waveforms = blob["waveforms"]
+        sig_pos = np.argmin(np.mean(waveforms, axis=0))
+        blob["sig_pos"] = sig_pos
+        ped_sig_range = [
+            sig_pos - 3 * self.ap_integration_window_half_width,
+            sig_pos - self.ap_integration_window_half_width,
+            sig_pos - self.ap_integration_window_half_width,
+            sig_pos + self.ap_integration_window_half_width,
+        ]
+        charges = calculate_charges(waveforms, *ped_sig_range)
+        x, y = bin_data(charges, bins=200)
+
+        fitter = ChargeHistFitter()
+        fitter.fix_ped_spe(
+            fitter_ref.popt_prf["ped_mean"] * time_bin_ratio,
+            fitter_ref.popt_prf["ped_sigma"] * time_bin_ratio,
+            fitter_ref.popt_prf["spe_charge"] * time_bin_ratio,
+            fitter_ref.popt_prf["spe_sigma"] * time_bin_ratio,
+        )
+        fitter.pre_fit(x, y, print_level=0)
+        fitter.fit_pmt_resp_func(
+            x,
+            y,
+            n_gaussians=self.n_gaussians,
+            strong_limits=False,
+            print_level=0,
+        )
+        blob["fit_info"]["x"] = x
+        blob["fit_info"]["y"] = y
+        blob["fit_info"]["fit_values"] = fitter.opt_prf_values
+        blob["ap_nphe"] = fitter.popt_prf["nphe"]
+        return blob
+
+
+class AfterpulseCalculator(tp.Module):
+    """
+    pipe module that calculates afterpulse probability
+
+    Parameters
+    ----------
+    threshold: float
+        threshold for peak finder
+    rel_ap_time_window: tuple(float)
+        time window relative to main signal in which afterpulses are counted
+    double_peak_distance: int
+        max distance between peaks to count as double peak
+    ap_integration_window_half_width: int
+        half width of pedestal and signal integration range of afterpulse data
+    """
+
+    def configure(self):
+        self.threshold = self.get("threshold")
+        self.rel_ap_range = self.get("rel_ap_range", default=(0.1, 12))
+        self.double_peak_distance = self.get("double_peak_distance", default=20)
+        self.ap_integration_window_half_width = self.get(
+            "ap_integration_window_half_width", default=25
+        )
+
+    def process(self, blob):
+        S_TO_US = 1e6
+        waveforms = blob["waveforms"]
+        waveforms = (waveforms.T - np.mean(waveforms[:, :100], axis=1)).T
+        peaks = peak_finder(waveforms, self.threshold)
+        peaks = remove_double_peaks(peaks, distance=self.double_peak_distance)
+        sig_pos = blob["sig_pos"]
+        peaks = peaks_with_signal(
+            peaks,
+            (
+                sig_pos - self.ap_integration_window_half_width,
+                sig_pos + self.ap_integration_window_half_width,
+            ),
+        )
+        flat_peaks = []
+        for peak in peaks:
+            for p in peak:
+                flat_peaks.append(p)
+        ap_dist_us = np.array(flat_peaks) * blob["h_int"] * S_TO_US
+        sig_pos_us = sig_pos * blob["h_int"] * S_TO_US
+        blob["ap_dist_us"] = ap_dist_us
+        dr_window_len = sig_pos_us - 0.05
+        ap_window_len = self.rel_ap_range[1] - self.rel_ap_range[0]
+        n_dr_hits = (
+            np.sum(ap_dist_us < (sig_pos_us - 0.05))
+            * ap_window_len
+            / dr_window_len
+        )
+        blob["n_dr_hits"] = n_dr_hits
+        n_afterpulses = np.sum(
+            (ap_dist_us > (sig_pos_us + self.rel_ap_range[0]))
+            & (ap_dist_us < (sig_pos_us + self.rel_ap_range[1]))
+        )
+        blob["n_afterpulses"] = n_afterpulses
+        afterpulse_prob = (
+            (n_afterpulses - n_dr_hits) / len(peaks) / blob["ap_nphe"]
+        )
+        blob["afterpulse_prob"] = afterpulse_prob
+        return blob
+
+
+class AfterpulseResultWriter(tp.Module):
+    def configure(self):
+        self.filename = self.get("filename")
+
+    def process(self, blob):
+        outfile = open(self.filename, "a")
+        outfile.write(f"{blob['pmt_id']} {blob['afterpulse_prob']}\n")
+        outfile.close()
+        return blob
+
+
+class AfterpulsePlotter(tp.Module):
+    def configure(self):
+        self.file_path = self.get("file_path")
+
+    def process(self, blob):
+        fig, ax = plt.subplots(2, 2, figsize=(12, 5))
+        ax = ax.flatten()
+        ax[0].semilogy(blob["fit_info"]["x_ref"], blob["fit_info"]["y_ref"])
+        ax[0].semilogy(
+            blob["fit_info"]["x_ref"], blob["fit_info"]["prf_values_ref"]
+        )
+        ax[0].set_ylim(0.1, 1e4)
+        ax[0].set_xlabel("charge [A.U.]")
+        ax[0].set_ylabel("counts")
+        ax[1].semilogy(blob["fit_info"]["x"], blob["fit_info"]["y"])
+        ax[1].semilogy(blob["fit_info"]["x"], blob["fit_info"]["fit_values"])
+        ax[1].set_ylim(0.1, 1e4)
+        ax[1].set_xlabel("charge [A.U.]")
+        ax[1].set_ylabel("counts")
+        ax[1].text(0, 1e3, f"nphe: {round(blob['ap_nphe'], 2)}")
+        ax[2].hist(blob["ap_dist_us"], bins=200, log=True)
+        ax[2].set_xlabel("time [us]")
+        ax[2].set_ylabel("counts")
+        ax[2].text(
+            5,
+            2e3,
+            f"afterpulse probability: {round(blob['afterpulse_prob'], 2)}",
+        )
+        fig.savefig(f"{self.file_path}/{blob['pmt_id']}_afterpulse.png")
+        plt.close(fig)
+        return blob
