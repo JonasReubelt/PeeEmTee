@@ -176,9 +176,10 @@ def calculate_persist_data(waveforms, bins=(10, 10), range=None):
     return x.flatten(), y.flatten(), z.flatten()
 
 
-def calculate_mean_signal(signals):
+def calculate_mean_signal(signals, shift_by="min"):
     """
-    Calculates mean signals from several PMT signals
+    Calculates mean signals from several PMT signals with shifting the signals
+    by their minimum or maximum to correct for time jitter
 
     Parameters
     ----------
@@ -187,16 +188,24 @@ def calculate_mean_signal(signals):
         [[signal1],
         [signal2],
         ...]
+    shift_by: str
+        shift by "min" or "max" of the signal to correct for time jitter
     Returns
     -------
     mean_signal: (np.array, np.array)
         x and y values of mean signal
     """
     rolled_signals = []
+    if shift_by == "min":
+        f = np.argmin
+    elif shift_by == "max":
+        f = np.argmax
+    else:
+        print("can only shift by 'min' or 'max'")
     nx = signals.shape[1]
     xs = np.arange(nx)
     for signal in signals:
-        shift = np.argmin(signal)
+        shift = f(signal)
         rolled_signals.append(np.roll(signal, -shift + int(nx / 2)))
     mean_signal = np.mean(rolled_signals, axis=0)
     return mean_signal
