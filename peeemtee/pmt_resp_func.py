@@ -26,16 +26,17 @@ def fit_gaussian(x, y, errordef=10, print_level=1, calculate_hesse=False):
         optimal parameters {"mean": mean, "sigma": sigma, "A": A}
         covariance matrix {("mean","mean"): cov_mean, ("mean", "sigma"): ...}
     """
+
     def make_quality_function(x, y):
         def quality_function(mean, sigma, A):
-            return np.sum(((gaussian(x, mean, sigma, A) - y))**2)
+            return np.sum(((gaussian(x, mean, sigma, A) - y)) ** 2)
 
         return quality_function
 
     mean_start = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
     if len(above_half_max) == 1:
-        sigma_start = 1
+        sigma_start = x[1] - x[0]
     else:
         sigma_start = (above_half_max[-1] - above_half_max[0]) / 2.355
     A_start = y.max() * np.sqrt(2 * np.pi) * sigma_start
@@ -74,13 +75,14 @@ class ChargeHistFitter(object):
         plt.plot(x, fitter.pmt_resp_func(x, **fitter.popt_prf))
 
     """
+
     def __init__(self):
         self.fixed_ped_spe = False
 
     def _calculate_single_gaussian_shape(self, n):
         popt = self.popt_prf
         A = poisson.pmf(int(n), popt["nphe"]) * popt["entries"]
-        sigma = np.sqrt(n * popt["spe_sigma"]**2 + popt["ped_sigma"]**2)
+        sigma = np.sqrt(n * popt["spe_sigma"] ** 2 + popt["ped_sigma"] ** 2)
         mean = n * popt["spe_charge"] + popt["ped_mean"]
         return mean, sigma, A
 
@@ -104,14 +106,15 @@ class ChargeHistFitter(object):
         mean, sigma, A = self._calculate_single_gaussian_shape(n)
         return gaussian(x, mean, sigma, A)
 
-    def pmt_resp_func(self, x, nphe, ped_mean, ped_sigma, spe_charge,
-                      spe_sigma, entries):
+    def pmt_resp_func(
+        self, x, nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries
+    ):
         func = 0.0
         for i in range(self.n_gaussians):
             pois = poisson.pmf(int(i), nphe)
-            sigma = np.sqrt(i * spe_sigma**2 + ped_sigma**2)
+            sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
             arg = (x - (i * spe_charge + ped_mean)) / sigma
-            func += pois / sigma * np.exp(-0.5 * arg**2)
+            func += pois / sigma * np.exp(-0.5 * arg ** 2)
         func = entries * func / np.sqrt(2 * np.pi)
         return func
 
@@ -131,9 +134,9 @@ class ChargeHistFitter(object):
         func = 0.0
         for i in range(self.n_gaussians):
             pois = poisson.pmf(int(i), nphe)
-            sigma = np.sqrt(i * spe_sigma**2 + ped_sigma**2)
+            sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
             arg = (x - (i * spe_charge + ped_mean)) / sigma
-            func += pois / sigma * np.exp(-0.5 * arg**2)
+            func += pois / sigma * np.exp(-0.5 * arg ** 2)
         func = entries * func / np.sqrt(2 * np.pi)
         func += gaussian(x, uap_mean, uap_sigma, uap_A)
         return func
@@ -226,9 +229,9 @@ class ChargeHistFitter(object):
                 if spe_upper_bound is None:
                     cond = x > (popt_ped["mean"] + n_sigma * popt_ped["sigma"])
                 else:
-                    cond = (x >
-                            (popt_ped["mean"] + n_sigma * popt_ped["sigma"])
-                            ) & (x < spe_upper_bound)
+                    cond = (
+                        x > (popt_ped["mean"] + n_sigma * popt_ped["sigma"])
+                    ) & (x < spe_upper_bound)
             else:
                 if spe_upper_bound is None:
                     cond = x > valley
@@ -252,8 +255,7 @@ class ChargeHistFitter(object):
             self.opt_spe_values = gaussian(x, **popt_spe)
 
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
-            self.nphe = -np.log(popt_ped["A"] /
-                                (popt_ped["A"] + popt_spe["A"]))
+            self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
             if self.nphe < 0:
                 self.nphe = 0
             self.n_gaussians = 10
@@ -301,8 +303,9 @@ class ChargeHistFitter(object):
         def make_quality_function(x, y, mod):
             if not mod:
 
-                def quality_function(nphe, ped_mean, ped_sigma, spe_charge,
-                                     spe_sigma, entries):
+                def quality_function(
+                    nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries
+                ):
                     model = func(
                         x,
                         nphe,
@@ -313,7 +316,7 @@ class ChargeHistFitter(object):
                         entries,
                     )
                     mask = y != 0
-                    return np.sum(((model[mask] - y[mask]))**2 / y[mask])
+                    return np.sum(((model[mask] - y[mask])) ** 2 / y[mask])
 
             if mod == "uap":
 
@@ -341,7 +344,7 @@ class ChargeHistFitter(object):
                         uap_A,
                     )
                     mask = y != 0
-                    return np.sum(((model[mask] - y[mask]))**2 / y[mask])
+                    return np.sum(((model[mask] - y[mask])) ** 2 / y[mask])
 
             return quality_function
 
