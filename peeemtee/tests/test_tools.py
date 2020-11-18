@@ -58,7 +58,24 @@ class TestTools(TestCase):
             ]
         )
         self.assertListEqual(
-            list(calculate_transit_times(data, 0, 2, -10)), [3, 2, 2]
+            list(calculate_transit_times(data, 0, 2, -10, polarity="negative")),
+            [3, 2, 2],
+        )
+
+        data = np.array(
+            [
+                [0, 2, 1, 26, -3, -1],
+                [-2, 1, -7, 19, 143, 3],
+                [100, 102, 85, 107, 141, -15],
+            ]
+        )
+        self.assertListEqual(
+            list(calculate_transit_times(data, 0, 2, 10, polarity="positive")),
+            [3, 3, 4],
+        )
+        assert (
+            calculate_transit_times(data, 0, 2, 10, polarity="nasenschaals")
+            == None
         )
 
     def test_bin_data(self):

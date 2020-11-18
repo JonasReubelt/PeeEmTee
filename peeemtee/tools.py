@@ -78,7 +78,9 @@ def calculate_charges(
     return charges
 
 
-def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
+def calculate_transit_times(
+    signals, baseline_min, baseline_max, threshold, polarity="negative"
+):
     """
     Calculates transit times of signals
 
@@ -95,7 +97,9 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
         maximum of baseline calculation window
     threshold: float
         transit time is calculated when signal crosses threshold
-
+    polarity: str
+        'positive' if PMT signals have positive polarity,
+        'negative' if PMT signals have negative polarity
 
     Returns
     -------
@@ -106,7 +110,13 @@ def calculate_transit_times(signals, baseline_min, baseline_max, threshold):
     zeroed_signals = (
         signals.T - np.mean(signals[:, baseline_min:baseline_max], axis=1)
     ).T
-    transit_times = np.argmax(zeroed_signals < threshold, axis=1)
+    if polarity == "negative":
+        transit_times = np.argmax(zeroed_signals < threshold, axis=1)
+    elif polarity == "positive":
+        transit_times = np.argmax(zeroed_signals > threshold, axis=1)
+    else:
+        print("polarity has to be 'positive' or 'negative'")
+        return None
     return transit_times[transit_times != 0]
 
 
