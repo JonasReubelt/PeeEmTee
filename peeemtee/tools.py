@@ -70,7 +70,7 @@ def calculate_charges(
         func = np.trapz
     else:
         print("unknown method. try sum or trapz!")
-        return 0
+        return None
     pedestals = func(waveforms[:, ped_min:ped_max], axis=1)
     signals = func(waveforms[:, sig_min:sig_max], axis=1)
     charges = -(signals - pedestals * sig_ped_ratio)

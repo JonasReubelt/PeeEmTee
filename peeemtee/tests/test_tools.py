@@ -48,6 +48,11 @@ class TestTools(TestCase):
         self.assertListEqual(
             list(calculate_charges(data, 0, 2, 2, 4)), [99, 396, 56]
         )
+        self.assertListEqual(
+            list(calculate_charges(data, 0, 2, 2, 4, method="trapz")),
+            [49.5, 198.0, 28.0],
+        )
+        assert calculate_charges(data, 0, 2, 2, 4, method="paul-hubert") == None
 
     def test_calculate_transit_times(self):
         data = np.array(
