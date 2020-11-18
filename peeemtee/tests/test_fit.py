@@ -26,6 +26,33 @@ class TestTools(TestCase):
             / 195
             < 2
         )
+        fitter = ChargeHistFitter()
+        fitter.pre_fit(
+            x,
+            y,
+            print_level=0,
+            valley=0.1,
+            spe_upper_bound=0.25,
+            calculate_hesse=True,
+        )
+        fitter.fit_pmt_resp_func(x, y, print_level=0, fixed_parameters=[])
+
+        assert (
+            np.sum((y - fitter.opt_prf_values) ** 2 / fitter.opt_prf_values)
+            / 195
+            < 2
+        )
+        fitter = ChargeHistFitter()
+        fitter.pre_fit(
+            x, y, print_level=0, spe_upper_bound=0.25, calculate_hesse=True
+        )
+        fitter.fit_pmt_resp_func(x, y, print_level=0, fixed_parameters=[])
+
+        assert (
+            np.sum((y - fitter.opt_prf_values) ** 2 / fitter.opt_prf_values)
+            / 195
+            < 2
+        )
 
     def test_fit_pmt_resp_func_uap(self):
         x, y = np.loadtxt(
