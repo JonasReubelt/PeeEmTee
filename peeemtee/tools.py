@@ -212,6 +212,7 @@ def calculate_mean_signal(signals, shift_by="min"):
         f = np.argmax
     else:
         print("can only shift by 'min' or 'max'")
+        return None
     nx = signals.shape[1]
     xs = np.arange(nx)
     for signal in signals:

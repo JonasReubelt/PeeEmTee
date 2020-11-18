@@ -165,6 +165,10 @@ class TestTools(TestCase):
         np.testing.assert_array_almost_equal(
             calculate_mean_signal(signals), mean_signal
         )
+        np.testing.assert_array_almost_equal(
+            calculate_mean_signal(-signals, shift_by="max"), -mean_signal
+        )
+        assert calculate_mean_signal(signals, shift_by="leberkäs") == None
 
     def test_calculate_persist_data(self):
         data = np.array([[-1, 0, 1], [1, 0, -1], [0, 0, 0]])
