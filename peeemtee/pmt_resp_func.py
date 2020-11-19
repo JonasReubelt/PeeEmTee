@@ -383,13 +383,13 @@ class ChargeHistFitter(object):
         if mod == "uap":
             kwargs["uap_mean"] = self.popt_spe["mean"] / 5
             kwargs["uap_sigma"] = self.popt_spe["sigma"] / 5
-            kwargs["uap_A"] = entries_start / 50
+            kwargs["uap_A"] = entries_start / 100
             kwargs["limit_uap_mean"] = (
                 self.popt_ped["mean"],
-                self.popt_spe["mean"],
+                self.popt_spe["mean"] / 3,
             )
-            kwargs["limit_uap_A"] = (0, entries_start / 10)
-            kwargs["limit_uap_sigma"] = (0, self.popt_spe["sigma"])
+            kwargs["limit_uap_A"] = (0, entries_start / 20)
+            kwargs["limit_uap_sigma"] = (0, self.popt_spe["sigma"] / 3)
 
         self.m = Minuit(
             qfunc,
