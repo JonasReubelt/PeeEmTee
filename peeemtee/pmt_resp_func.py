@@ -369,7 +369,8 @@ class ChargeHistFitter(object):
                 self.spe_charge / 2,
                 self.spe_charge * 2,
             )
-            kwargs["limit_spe_sigma"] = (0, self.popt_spe["sigma"] * 2)
+            # kwargs["limit_spe_sigma"] = (0, self.popt_spe["sigma"] * 2)
+            kwargs["limit_spe_sigma"] = (0, self.spe_charge * 0.8)
             kwargs["limit_entries"] = (0, entries_start * 2)
 
         for parameter in fixed_parameters:
@@ -383,12 +384,12 @@ class ChargeHistFitter(object):
         if mod == "uap":
             kwargs["uap_mean"] = self.popt_spe["mean"] / 5
             kwargs["uap_sigma"] = self.popt_spe["sigma"] / 5
-            kwargs["uap_A"] = entries_start / 100
+            kwargs["uap_A"] = entries_start / 200
             kwargs["limit_uap_mean"] = (
                 self.popt_ped["mean"],
                 self.popt_spe["mean"] / 3,
             )
-            kwargs["limit_uap_A"] = (0, entries_start / 20)
+            kwargs["limit_uap_A"] = (0, entries_start / 100)
             kwargs["limit_uap_sigma"] = (0, self.popt_spe["sigma"] / 3)
 
         self.m = Minuit(
