@@ -5,3 +5,4 @@ iminuit
 setuptools_scm
 numba
 h5py
+scikit-learn
