@@ -422,8 +422,10 @@ class TestTools(TestCase):
         np.testing.assert_array_equal(cr, [[3, 21, 29, 55]])
 
     def test_estimate_kernel_density(self):
-        charges = np.loadtxt("samples/spe_charge_sample.txt")
+        charges = np.loadtxt("peeemtee/tests/samples/spe_charge_sample.txt")
         x, y = estimate_kernel_density(charges)
-        x_ref, y_ref = np.loadtxt("charges_kernel_density.txt", unpack=True)
+        x_ref, y_ref = np.loadtxt(
+            "peeemtee/tests/samples/charges_kernel_density.txt", unpack=True
+        )
         np.testing.assert_array_almost_equal(x, x_ref)
         np.testing.assert_array_almost_equal(y, y_ref)
