@@ -8,6 +8,7 @@ import h5py
 import codecs
 import datetime
 import pytz.reference
+from sklearn.neighbors import KernelDensity
 
 TIMEZONE = pytz.reference.LocalTimezone()
 
@@ -449,3 +450,33 @@ def peaks_with_signal(peaks, signal_range):
         if got_signal:
             peaks_with_signal.append(peak)
     return peaks_with_signal
+
+
+def estimate_kernel_density(
+    data, kernel="tophat", bandwidth=0.02, n_sampling_points=200
+):
+    """Estimates kernel density of given data in order to avoid binning artifacts
+
+    Parameters
+    ----------
+    data: list or np.array
+        1D array of input data
+    kernel: str
+        kernel to use for estimation ("tophat", "gaussian", etc.)
+    bandwidth: float
+        bandwidth of the kernel
+    n_sampling_points: int
+        number of sample points to return from distribution
+
+    Returns
+    -------
+    x: np.array(float)
+        x-values of samples of distribution
+    y: np.array(float)
+        y-values of samples of distribution
+    """
+    kde = KernelDensity(bandwidth=bandwidth, kernel=kernel)
+    kde.fit(data[:, None])
+    x = np.linspace(np.min(data), np.max(data), n_sampling_points)
+    y = np.exp(kde.score_samples(x[:, None]))
+    return x, y

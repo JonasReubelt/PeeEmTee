@@ -1,1 +1,3 @@
-{}
+{
+  "peeemtee/tests/test_tools.py::TestTools::test_estimate_kernel_density": true
+}

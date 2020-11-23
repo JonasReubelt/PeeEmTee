@@ -17,6 +17,7 @@ from peeemtee.tools import (
     choose_ref,
     remove_double_peaks,
     peaks_with_signal,
+    estimate_kernel_density,
 )
 
 
@@ -419,3 +420,10 @@ class TestTools(TestCase):
         signal_range = (20, 30)
         cr = peaks_with_signal(c, signal_range=signal_range)
         np.testing.assert_array_equal(cr, [[3, 21, 29, 55]])
+
+    def test_estimate_kernel_density(self):
+        charges = np.loadtxt("samples/spe_charge_sample.txt")
+        x, y = estimate_kernel_density(charges)
+        x_ref, y_ref = np.loadtxt("charges_kernel_density.txt", unpack=True)
+        np.testing.assert_array_almost_equal(x, x_ref)
+        np.testing.assert_array_almost_equal(y, y_ref)
