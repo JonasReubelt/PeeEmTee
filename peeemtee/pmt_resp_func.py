@@ -36,11 +36,11 @@ def fit_gaussian(x, y, errordef=10, print_level=1, calculate_hesse=False):
     mean_start = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
     if len(above_half_max) == 1:
-        sigma_start = x[1] - x[0]
+        sigma_start = np.abs(x[1] - x[0])
     else:
-        sigma_start = (above_half_max[-1] - above_half_max[0]) / 2.355
+        sigma_start = (above_half_max.max() - above_half_max.min()) / 2.355
     A_start = y.max() * np.sqrt(2 * np.pi) * sigma_start
-
+    print(sigma_start, A_start, above_half_max)
     qfunc = make_quality_function(x, y)
 
     kwargs = {"mean": mean_start, "sigma": sigma_start, "A": A_start}
