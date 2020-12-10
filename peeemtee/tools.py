@@ -497,9 +497,9 @@ def align_waveforms(
         [waveform2],
         ...]
     baseline_min: int
-        index of minimum of window for mean calculation
+        index of minimum of window for mean calculation (included)
     baseline_max: int
-        index of maximum of window for mean calculation
+        index of maximum of window for mean calculation (excluded)
     inplace: bool
         perform calculation inplace or not
 
