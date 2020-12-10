@@ -18,6 +18,7 @@ from peeemtee.tools import (
     remove_double_peaks,
     peaks_with_signal,
     estimate_kernel_density,
+    align_waveforms,
 )
 
 
@@ -429,3 +430,31 @@ class TestTools(TestCase):
         )
         np.testing.assert_array_almost_equal(x, x_ref)
         np.testing.assert_array_almost_equal(y, y_ref)
+
+    def test_align_waveforms(self):
+        a = np.array([[1, 2, 3], [4, 5, 6]])
+        a_ref = np.array([[-1, 0, 1], [-1, 0, 1]])
+        align_waveforms(a)
+        np.testing.assert_array_equal(a, a_ref)
+        b = np.array(
+            [[-1.0, 2.0, -3.0], [7.0, -50.0, 6.0], [6, 23, 4], [-12, 5, -2]]
+        )
+        b_ref = np.array(
+            [
+                [-0.33333333, 2.66666667, -2.33333333],
+                [19.33333333, -37.66666667, 18.33333333],
+                [-5.0, 12.0, -7.0],
+                [-9.0, 8.0, 1.0],
+            ]
+        )
+        align_waveforms(b)
+        np.testing.assert_array_almost_equal(b, b_ref)
+        c = np.array([[1.0, 0, -1, 5, 11, 13], [-55, -73, 0, 3, -2, 11]])
+        c_ref = np.array(
+            [
+                [0.5, -0.5, -1.5, 4.5, 10.5, 12.5],
+                [9.0, -9.0, 64.0, 67.0, 62.0, 75.0],
+            ]
+        )
+        align_waveforms(c, baseline_min=0, baseline_max=2)
+        np.testing.assert_array_almost_equal(c, c_ref)

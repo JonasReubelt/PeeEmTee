@@ -3,7 +3,7 @@
 import os
 import numpy as np
 from scipy.optimize import curve_fit
-from numba import jit
+from numba import njit
 import h5py
 import codecs
 import datetime
@@ -223,7 +223,7 @@ def calculate_mean_signal(signals, shift_by="min"):
     return mean_signal
 
 
-@jit(nopython=True)
+@njit
 def peak_finder(waveforms, threshold):  # pragma: no cover
     """
     Finds peaks in waveforms
@@ -480,3 +480,43 @@ def estimate_kernel_density(
     x = np.linspace(np.min(data), np.max(data), n_sampling_points)
     y = np.exp(kde.score_samples(x[:, None]))
     return x, y
+
+
+@njit
+def align_waveforms(
+    waveforms, baseline_min=None, baseline_max=None, inplace=True
+):
+    """
+    Subtracts the mean of (a part of the) waveforms from waveforms (individually)
+
+    Parameters
+    ----------
+    waveforms: np.array
+        2D numpy array with one waveform in each row
+        [[waveform1],
+        [waveform2],
+        ...]
+    baseline_min: int
+        index of minimum of window for mean calculation
+    baseline_max: int
+        index of maximum of window for mean calculation
+    inplace: bool
+        perform calculation inplace or not
+
+    Returns
+    -------
+    waveforms: np.array
+        aligned waveform array
+        [[aligned waveform1],
+        [aligned waveform2],
+        ...]
+    """
+
+    if not inplace:
+        waveforms = np.copy(waveforms)
+    n, m = waveforms.shape
+    for i in range(n):
+        mean = np.mean(waveforms[i][baseline_min:baseline_max])
+        for j in range(m):
+            waveforms[i][j] -= mean
+    return waveforms
