@@ -6,7 +6,7 @@ from iminuit import Minuit
 from .tools import gaussian
 
 
-def fit_gaussian(x, y, errordef=10, print_level=1, calculate_hesse=False):
+def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
     Fit a gaussian to data using iminuit migrad
 
@@ -16,7 +16,6 @@ def fit_gaussian(x, y, errordef=10, print_level=1, calculate_hesse=False):
         x values of the data
     y: np.array
         y values of the data
-    errordef: int, default: 10
     print_level: int, default: 1
         0: quiet, 1: print fit details
 
@@ -47,7 +46,6 @@ def fit_gaussian(x, y, errordef=10, print_level=1, calculate_hesse=False):
 
     m = Minuit(
         qfunc,
-        errordef=errordef,
         pedantic=False,
         print_level=print_level,
         **kwargs,
@@ -169,7 +167,6 @@ class ChargeHistFitter(object):
         valley=None,
         spe_upper_bound=None,
         n_sigma=3,
-        errordef=10,
         print_level=1,
         calculate_hesse=False,
     ):
@@ -197,7 +194,6 @@ class ChargeHistFitter(object):
             popt, pcov = fit_gaussian(
                 x,
                 y,
-                errordef=errordef,
                 print_level=print_level,
                 calculate_hesse=calculate_hesse,
             )
@@ -242,7 +238,6 @@ class ChargeHistFitter(object):
             popt_spe, pcov_spe = fit_gaussian(
                 x_spe,
                 y_spe,
-                errordef=errordef,
                 print_level=print_level,
                 calculate_hesse=calculate_hesse,
             )
@@ -265,7 +260,6 @@ class ChargeHistFitter(object):
         x,
         y,
         n_gaussians=None,
-        errordef=10,
         print_level=1,
         mod=False,
         strong_limits=True,
@@ -282,8 +276,6 @@ class ChargeHistFitter(object):
             bin counts of the charge histogram
         n_gaussians: int
             number of gaussians to be fitted
-        errordef: int
-            parses "errordef" from iminuit
         mod: string
             if False: no modification
             "uap": fits an additional underamplified pulse gaussian
@@ -394,7 +386,6 @@ class ChargeHistFitter(object):
 
         self.m = Minuit(
             qfunc,
-            errordef=errordef,
             pedantic=False,
             print_level=print_level,
             throw_nan=True,
