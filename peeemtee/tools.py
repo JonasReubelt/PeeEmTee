@@ -485,7 +485,7 @@ def estimate_kernel_density(
 @njit
 def align_waveforms(
     waveforms, baseline_min=None, baseline_max=None, inplace=True
-):
+):  # pragma: no cover
     """
     Subtracts the mean of (a part of the) waveforms from waveforms (individually)
 
