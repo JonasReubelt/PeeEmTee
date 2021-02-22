@@ -39,7 +39,6 @@ def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     else:
         sigma_start = (above_half_max.max() - above_half_max.min()) / 2.355
     A_start = y.max() * np.sqrt(2 * np.pi) * sigma_start
-    print(sigma_start, A_start, above_half_max)
     qfunc = make_quality_function(x, y)
 
     kwargs = {"mean": mean_start, "sigma": sigma_start, "A": A_start}
