@@ -8,3 +8,4 @@ doc/_build
 .pytest_cache/v/cache/nodeids
 reports/junit.xml
 .eggs/
+peeemtee/.vscode
