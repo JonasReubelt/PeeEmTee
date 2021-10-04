@@ -5,16 +5,21 @@ import h5py
 
 class WavesetReader:
     def __init__(self, filename):
-        self.file = h5py.File(filename, "r")
+        self.filename = filename
+        self._wavesets = None
 
     @property
     def wavesets(self):
-        return [key for key in self.file.keys()]
+        if self._wavesets is None:
+            with h5py.File(self.filename, "r") as f:
+                self._wavesets = list(f.keys())
+        return self._wavesets
 
     def __getitem__(self, key):
-        raw_waveforms = self.file[f"{key}/waveforms"][:]
-        v_gain = self.file[f"{key}/waveform_info/v_gain"][()]
-        h_int = self.file[f"{key}/waveform_info/h_int"][()]
+        with h5py.File(self.filename, "r") as f:
+            raw_waveforms = f[f"{key}/waveforms"][:]
+            v_gain = f[f"{key}/waveform_info/v_gain"][()]
+            h_int = f[f"{key}/waveform_info/h_int"][()]
         return Waveset(raw_waveforms, v_gain, h_int)
 
 
