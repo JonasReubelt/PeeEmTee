@@ -1,7 +1,7 @@
 numpy
 scipy
 matplotlib
-iminuit<2
+iminuit
 setuptools_scm
 numba
 h5py
