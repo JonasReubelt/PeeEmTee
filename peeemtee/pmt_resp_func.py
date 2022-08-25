@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats.distributions import poisson
 from iminuit import Minuit
 from .tools import gaussian
-
+import sys
 
 def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
@@ -27,10 +27,7 @@ def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
 
     def make_quality_function(x, y):
-        def quality_function(mean, sigma, A):
-            return np.sum(((gaussian(x, mean, sigma, A) - y)) ** 2)
-
-        return quality_function
+        return lambda mean, sigma, A: np.sum(((gaussian(x, mean, sigma, A) - y)) ** 2)
 
     mean_start = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
@@ -45,10 +42,9 @@ def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
 
     m = Minuit(
         qfunc,
-        pedantic=False,
-        print_level=print_level,
         **kwargs,
     )
+    m.print_level = print_level
     m.migrad()
     if calculate_hesse:
         m.hesse()
@@ -245,8 +241,8 @@ class ChargeHistFitter(object):
             self.pcov_ped = pcov_ped
             self.popt_spe = popt_spe
             self.pcov_spe = pcov_spe
-            self.opt_ped_values = gaussian(x, **popt_ped)
-            self.opt_spe_values = gaussian(x, **popt_spe)
+            self.opt_ped_values = gaussian(x, *popt_ped)
+            self.opt_spe_values = gaussian(x, *popt_spe)
 
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
@@ -261,7 +257,7 @@ class ChargeHistFitter(object):
         n_gaussians=None,
         print_level=1,
         mod=False,
-        strong_limits=True,
+        strong_limits=False,
         fixed_parameters=["ped_mean", "ped_sigma"],
     ):
         """
@@ -364,8 +360,8 @@ class ChargeHistFitter(object):
             kwargs["limit_spe_sigma"] = (0, self.spe_charge * 0.8)
             kwargs["limit_entries"] = (0, entries_start * 2)
 
-        for parameter in fixed_parameters:
-            kwargs[f"fix_{parameter}"] = True
+        #for parameter in fixed_parameters:
+        #    kwargs[f"fix_{parameter}"] = True
         if self.fixed_ped_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
@@ -383,13 +379,9 @@ class ChargeHistFitter(object):
             kwargs["limit_uap_A"] = (0, entries_start / 100)
             kwargs["limit_uap_sigma"] = (0, self.popt_spe["sigma"] / 3)
 
-        self.m = Minuit(
-            qfunc,
-            pedantic=False,
-            print_level=print_level,
-            throw_nan=True,
-            **kwargs,
-        )
+        self.m = Minuit(qfunc, **kwargs)
+        self.m.print_level=print_level
+        self.m.throw_nan=True
         try:
             self.m.migrad()
         except RuntimeError:
@@ -398,5 +390,5 @@ class ChargeHistFitter(object):
             self.success = True
         # self.m.hesse()
         self.popt_prf = self.m.values
-        self.opt_prf_values = func(x, **self.m.values)
+        self.opt_prf_values = func(x, *self.m.values)
         self.pcov_prf = self.m.covariance
