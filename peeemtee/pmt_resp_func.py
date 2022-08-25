@@ -4,7 +4,6 @@ import numpy as np
 from scipy.stats.distributions import poisson
 from iminuit import Minuit
 from .tools import gaussian
-import sys
 
 def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
