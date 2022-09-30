@@ -5,6 +5,7 @@ from scipy.stats.distributions import poisson
 from iminuit import Minuit
 from .tools import gaussian
 
+
 def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
     Fit a gaussian to data using iminuit migrad
@@ -185,6 +186,7 @@ class ChargeHistFitter(object):
         """
 
         if self.fixed_ped_spe:
+
             popt, pcov = fit_gaussian(
                 x,
                 y,
@@ -207,7 +209,6 @@ class ChargeHistFitter(object):
             else:
                 cond = x < valley
                 x_ped, y_ped = x[cond], y[cond]
-
             popt_ped, pcov_ped = fit_gaussian(
                 x_ped,
                 y_ped,
@@ -228,7 +229,6 @@ class ChargeHistFitter(object):
                 else:
                     cond = (x > valley) & (x < spe_upper_bound)
             x_spe, y_spe = x[cond], y[cond]
-
             popt_spe, pcov_spe = fit_gaussian(
                 x_spe,
                 y_spe,
@@ -359,8 +359,9 @@ class ChargeHistFitter(object):
             kwargs["limit_spe_sigma"] = (0, self.spe_charge * 0.8)
             kwargs["limit_entries"] = (0, entries_start * 2)
 
-        #for parameter in fixed_parameters:
-        #    kwargs[f"fix_{parameter}"] = True
+
+
+
         if self.fixed_ped_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
@@ -371,16 +372,23 @@ class ChargeHistFitter(object):
             kwargs["uap_mean"] = self.popt_spe["mean"] / 5
             kwargs["uap_sigma"] = self.popt_spe["sigma"] / 5
             kwargs["uap_A"] = entries_start / 200
-            kwargs["limit_uap_mean"] = (
-                self.popt_ped["mean"],
-                self.popt_spe["mean"] / 3,
-            )
-            kwargs["limit_uap_A"] = (0, entries_start / 100)
-            kwargs["limit_uap_sigma"] = (0, self.popt_spe["sigma"] / 3)
+
+
 
         self.m = Minuit(qfunc, **kwargs)
         self.m.print_level=print_level
         self.m.throw_nan=True
+        if mod == 'uap':
+            self.m.limits["uap_mean"] = (
+                self.popt_ped["mean"],
+                self.popt_spe["mean"] / 3,
+            )
+            self.m.limits["uap_A"] = (0, entries_start / 100)
+            self.m.limits["uap_sigma"] =  (0, self.popt_spe["sigma"] / 3)
+
+        for parameter in fixed_parameters:
+            self.m.fixed[parameter] = True
+
         try:
             self.m.migrad()
         except RuntimeError:
