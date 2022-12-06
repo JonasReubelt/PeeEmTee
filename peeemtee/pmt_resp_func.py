@@ -6,6 +6,20 @@ from iminuit import Minuit
 from .tools import gaussian
 
 
+def num_integ(func, start, end, number=100000):
+    return np.sum(func(np.linspace(start, end, number))) * (end - start) / number
+
+def pmt_resp_func(x, nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries, n_gaussians = 10):
+    func = 0.0
+
+    for i in range(n_gaussians):
+        pois = poisson.pmf(int(i), nphe)
+        sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
+        arg = (x - (i * spe_charge + ped_mean)) / sigma
+        func += pois / sigma * np.exp(-0.5 * arg ** 2)
+    func = entries * func / np.sqrt(2 * np.pi)
+    return func
+
 def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
     Fit a gaussian to data using iminuit migrad
@@ -27,10 +41,7 @@ def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
     """
 
     def make_quality_function(x, y):
-        def quality_function(mean, sigma, A):
-            return np.sum(((gaussian(x, mean, sigma, A) - y)) ** 2)
-
-        return quality_function
+        return lambda mean, sigma, A: np.sum(((gaussian(x, mean, sigma, A) - y)) ** 2)
 
     mean_start = x[y.argmax()]
     above_half_max = x[y >= y.max() / 2]
@@ -45,10 +56,9 @@ def fit_gaussian(x, y, print_level=1, calculate_hesse=False):
 
     m = Minuit(
         qfunc,
-        pedantic=False,
-        print_level=print_level,
         **kwargs,
     )
+    m.print_level = print_level
     m.migrad()
     if calculate_hesse:
         m.hesse()
@@ -107,6 +117,7 @@ class ChargeHistFitter(object):
         self, x, nphe, ped_mean, ped_sigma, spe_charge, spe_sigma, entries
     ):
         func = 0.0
+
         for i in range(self.n_gaussians):
             pois = poisson.pmf(int(i), nphe)
             sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
@@ -129,6 +140,7 @@ class ChargeHistFitter(object):
         uap_A,
     ):
         func = 0.0
+
         for i in range(self.n_gaussians):
             pois = poisson.pmf(int(i), nphe)
             sigma = np.sqrt(i * spe_sigma ** 2 + ped_sigma ** 2)
@@ -190,6 +202,7 @@ class ChargeHistFitter(object):
         """
 
         if self.fixed_ped_spe:
+
             popt, pcov = fit_gaussian(
                 x,
                 y,
@@ -212,7 +225,6 @@ class ChargeHistFitter(object):
             else:
                 cond = x < valley
                 x_ped, y_ped = x[cond], y[cond]
-
             popt_ped, pcov_ped = fit_gaussian(
                 x_ped,
                 y_ped,
@@ -233,7 +245,6 @@ class ChargeHistFitter(object):
                 else:
                     cond = (x > valley) & (x < spe_upper_bound)
             x_spe, y_spe = x[cond], y[cond]
-
             popt_spe, pcov_spe = fit_gaussian(
                 x_spe,
                 y_spe,
@@ -245,8 +256,8 @@ class ChargeHistFitter(object):
             self.pcov_ped = pcov_ped
             self.popt_spe = popt_spe
             self.pcov_spe = pcov_spe
-            self.opt_ped_values = gaussian(x, **popt_ped)
-            self.opt_spe_values = gaussian(x, **popt_spe)
+            self.opt_ped_values = gaussian(x, *popt_ped)
+            self.opt_spe_values = gaussian(x, *popt_spe)
 
             self.spe_charge = popt_spe["mean"] - popt_ped["mean"]
             self.nphe = -np.log(popt_ped["A"] / (popt_ped["A"] + popt_spe["A"]))
@@ -261,7 +272,7 @@ class ChargeHistFitter(object):
         n_gaussians=None,
         print_level=1,
         mod=False,
-        strong_limits=True,
+        strong_limits=False,
         fixed_parameters=["ped_mean", "ped_sigma"],
     ):
         """
@@ -364,8 +375,9 @@ class ChargeHistFitter(object):
             kwargs["limit_spe_sigma"] = (0, self.spe_charge * 0.8)
             kwargs["limit_entries"] = (0, entries_start * 2)
 
-        for parameter in fixed_parameters:
-            kwargs[f"fix_{parameter}"] = True
+
+
+
         if self.fixed_ped_spe:
             kwargs["fix_spe_charge"] = True
             kwargs["fix_spe_sigma"] = True
@@ -376,27 +388,47 @@ class ChargeHistFitter(object):
             kwargs["uap_mean"] = self.popt_spe["mean"] / 5
             kwargs["uap_sigma"] = self.popt_spe["sigma"] / 5
             kwargs["uap_A"] = entries_start / 200
-            kwargs["limit_uap_mean"] = (
+
+
+
+        self.m = Minuit(qfunc, **kwargs)
+        self.m.print_level=print_level
+        self.m.throw_nan=True
+        if mod == 'uap':
+            self.m.limits["uap_mean"] = (
                 self.popt_ped["mean"],
                 self.popt_spe["mean"] / 3,
             )
-            kwargs["limit_uap_A"] = (0, entries_start / 100)
-            kwargs["limit_uap_sigma"] = (0, self.popt_spe["sigma"] / 3)
+            self.m.limits["uap_A"] = (0, entries_start / 100)
+            self.m.limits["uap_sigma"] =  (0, self.popt_spe["sigma"] / 3)
 
-        self.m = Minuit(
-            qfunc,
-            pedantic=False,
-            print_level=print_level,
-            throw_nan=True,
-            **kwargs,
-        )
+        for parameter in fixed_parameters:
+            self.m.fixed[parameter] = True
+
         try:
             self.m.migrad()
         except RuntimeError:
             self.success = False
         else:
             self.success = True
-        # self.m.hesse()
+        self.m.hesse()
         self.popt_prf = self.m.values
-        self.opt_prf_values = func(x, **self.m.values)
+        self.opt_prf_values = func(x, *self.m.values)
         self.pcov_prf = self.m.covariance
+
+
+
+    def quality_check(self, bin_edges, hi,  mod = None):
+        if mod =='uap':
+            func = lambda x: self.pmt_resp_func_uap(x, *self.popt_prf)
+        else:
+            func = lambda x: self.pmt_resp_func(x, *self.popt_prf)
+        norm = 1/self.popt_prf["entries"]
+        expect = np.array([num_integ(func, bin_edges[i], bin_edges[i+1], 100) for i in range(len(bin_edges)-1)])*np.sum(hi)*norm
+        mask = hi != 0
+        model = func(bin_edges)
+        return (np.sum(((model[mask] - hi[mask])) ** 2 / hi[mask]))/np.sum((hi[:-1] - expect) ** 2 / expect ** 2)
+
+
+
+
